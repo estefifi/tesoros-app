@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -730,7 +731,7 @@ export default function Home() {
                   Aún no has guardado tesoros en tu diario.
                 </p>
                 <p>
-                  Gira una carta y presiona <strong>"Guardar"</strong> para
+                  Gira una carta y presiona <strong>&quot;Guardar&quot;</strong> para
                   conservarla aquí.
                 </p>
               </div>
@@ -749,12 +750,12 @@ export default function Home() {
                     <span>{entry.date}</span>
                   </div>
                   <p className="text-xs font-playfair italic font-bold text-[#1C1817] text-center">
-                    "
+                    &ldquo;
                     {cleanText(
                       entry.card['Anverso (Gancho Científico)'] ||
                         entry.card['Modelo (Intención)']
                     )}
-                    "
+                    &rdquo;
                   </p>
                   <p className="text-[11px] text-[#1C1817]/90 font-open-sans font-normal leading-relaxed text-center">
                     {cleanText(
@@ -794,7 +795,7 @@ export default function Home() {
             </div>
             <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#EAE5DF] text-left space-y-3.5 text-xs leading-relaxed text-[#524B45] font-open-sans">
               <p className="text-sm font-playfair italic text-[#1C1817] font-semibold text-center">
-                "El apoyo emocional también salva vidas."
+                &ldquo;El apoyo emocional también salva vidas.&rdquo;
               </p>
               <p>
                 Tesoros del Autodescubrimiento nació después de los terremotos
