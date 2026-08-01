@@ -25,55 +25,18 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const CATEGORIES = [
-  {
-    key: 'SONREÍR',
-    label: 'SONREÍR',
-    sub: 'Humor y ligereza',
-    color: '#FAD02C',
-    tilt: '-rotate-1',
-  },
-  {
-    key: 'RESPIRAR',
-    label: 'RESPIRAR',
-    sub: 'Calma y pausa',
-    color: '#87CEEB',
-    tilt: 'rotate-0',
-  },
-  {
-    key: 'EXPLORAR',
-    label: 'EXPLORAR',
-    sub: 'Curiosidad y asombro',
-    color: '#81C784',
-    tilt: 'rotate-1',
-  },
-  {
-    key: 'EVOLUCIONAR',
-    label: 'EVOLUCIONAR',
-    sub: 'Fuerza interior',
-    color: '#E1BEE7',
-    tilt: 'rotate-1',
-  },
-  {
-    key: 'COMPARTIR',
-    label: 'COMPARTIR',
-    sub: 'Conexión y generosidad',
-    color: '#FF9A8B',
-    tilt: 'rotate-0',
-  },
-  {
-    key: 'CAJA DE HERRAMIENTAS',
-    label: 'CAJA DE HERRAMIENTAS',
-    sub: 'No lo tengo claro',
-    color: '#B8B8B8',
-    tilt: '-rotate-1',
-  },
+  { key: 'SONREÍR', label: 'SONREÍR', sub: 'Humor y ligereza', color: '#FAD02C', tilt: '-rotate-1' },
+  { key: 'RESPIRAR', label: 'RESPIRAR', sub: 'Calma y pausa', color: '#87CEEB', tilt: 'rotate-0' },
+  { key: 'EXPLORAR', label: 'EXPLORAR', sub: 'Curiosidad y asombro', color: '#81C784', tilt: 'rotate-1' },
+  { key: 'EVOLUCIONAR', label: 'EVOLUCIONAR', sub: 'Fuerza interior', color: '#E1BEE7', tilt: 'rotate-1' },
+  { key: 'COMPARTIR', label: 'COMPARTIR', sub: 'Conexión y generosidad', color: '#FF9A8B', tilt: 'rotate-0' },
+  { key: 'CAJA DE HERRAMIENTAS', label: 'CAJA DE HERRAMIENTAS', sub: 'No lo tengo claro', color: '#B8B8B8', tilt: '-rotate-1' },
 ];
 
 const cards: Card[] = (rawCards as Card[]).filter(
   (c) =>
     c['Categoría'] &&
-    (c['Anverso (Gancho Científico)'] ||
-      c['Reverso (Instrucción de Activación)'])
+    (c['Anverso (Gancho Científico)'] || c['Reverso (Instrucción de Activación)'] || c['Modelo (Intención)'])
 );
 
 interface DiaryEntry {
@@ -83,19 +46,21 @@ interface DiaryEntry {
   feeling?: string;
 }
 
-// FUNCIÓN AUXILIAR PARA LIMPIAR COMILLAS REPETIDAS O EXTERNAS
 const cleanText = (text?: string): string => {
   if (!text) return '';
   return text.trim().replace(/^["“]+|["”]+$/g, '');
 };
 
-// OBTENER CLAVE DE FECHA ACTUAL (YYYY-MM-DD)
 const getTodayKey = () => new Date().toISOString().split('T')[0];
 
+const getYesterdayKey = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+};
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'draw' | 'diary' | 'mission'>(
-    'draw'
-  );
+  const [activeTab, setActiveTab] = useState<'draw' | 'diary' | 'thermometer' | 'mission'>('draw');
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [userFeeling, setUserFeeling] = useState<string | null>(null);
@@ -103,10 +68,30 @@ export default function Home() {
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [isCardSaved, setIsCardSaved] = useState(false);
 
-  // ESTADO PARA ANIMACIÓN DE CARGA AL SACAR CARTA
+  // RACHA Y CALENDARIO
+  const [streak, setStreak] = useState<number>(0);
+  const [lastActiveDate, setLastActiveDate] = useState<string>('');
+  const [activityMap, setActivityMap] = useState<Record<string, string>>({});
+  const [showStreakModal, setShowStreakModal] = useState<boolean>(false);
+
+  // ANIMACIONES
+  const [isFlying, setIsFlying] = useState(false);
+  const [isDiarySparkling, setIsDiarySparkling] = useState(false);
+  const [flyingCard, setFlyingCard] = useState<Card | null>(null);
+
+  // TIRADAS DIARIAS Y CARTAS DE HOY
+  const [todayFlips, setTodayFlips] = useState<number>(0);
+  const [todayCards, setTodayCards] = useState<Card[]>([]);
+  const [showTodayModal, setShowTodayModal] = useState<boolean>(false);
+  const [carouselIndex, setCarouselIndex] = useState<number>(0);
+  const [modalIsFlipped, setModalIsFlipped] = useState<boolean>(false);
+
+  // MODALES
+  const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
+  const [showCategoryChoiceModal, setShowCategoryChoiceModal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ESTADÍSTICAS DINÁMICAS BASADAS EN LAS SELECCIONES DE HOY
+  // ESTADÍSTICAS DINÁMICAS (ESPEJO / TERMÓMETRO)
   const [dailyStats, setDailyStats] = useState<Record<string, number>>({
     SONREÍR: 45,
     RESPIRAR: 30,
@@ -116,26 +101,38 @@ export default function Home() {
     'CAJA DE HERRAMIENTAS': 5,
   });
 
-  // CARGAR DIARIO Y ESTADÍSTICAS DEL DÍA AL INICIAR
   useEffect(() => {
-    const savedDiary = localStorage.getItem('tesoros_diario');
-    if (savedDiary) {
-      try {
-        setDiary(JSON.parse(savedDiary));
-      } catch (e) {
-        console.error(e);
-      }
+    const today = getTodayKey();
+
+    const savedStreak = parseInt(localStorage.getItem('tesoros_streak') || '0', 10);
+    const savedLastDate = localStorage.getItem('tesoros_last_active_date') || '';
+    setStreak(savedStreak);
+    setLastActiveDate(savedLastDate);
+
+    const savedActivityMap = localStorage.getItem('tesoros_activity_map');
+    if (savedActivityMap) {
+      try { setActivityMap(JSON.parse(savedActivityMap)); } catch (e) {}
     }
 
-    const today = getTodayKey();
+    const flipsKey = `tesoros_flips_${today}`;
+    const savedFlips = localStorage.getItem(flipsKey);
+    if (savedFlips) setTodayFlips(parseInt(savedFlips, 10) || 0);
+
+    const todayCardsKey = `tesoros_today_cards_${today}`;
+    const savedTodayCards = localStorage.getItem(todayCardsKey);
+    if (savedTodayCards) {
+      try { setTodayCards(JSON.parse(savedTodayCards)); } catch (e) {}
+    }
+
+    const savedDiary = localStorage.getItem('tesoros_diario');
+    if (savedDiary) {
+      try { setDiary(JSON.parse(savedDiary)); } catch (e) {}
+    }
+
     const statsKey = `tesoros_stats_${today}`;
     const savedStats = localStorage.getItem(statsKey);
     if (savedStats) {
-      try {
-        setDailyStats(JSON.parse(savedStats));
-      } catch (e) {
-        console.error(e);
-      }
+      try { setDailyStats(JSON.parse(savedStats)); } catch (e) {}
     } else {
       const initialStats = {
         SONREÍR: 45,
@@ -150,6 +147,33 @@ export default function Home() {
     }
   }, []);
 
+  const registerDailyActivity = (categoryKey: string) => {
+    const today = getTodayKey();
+    const yesterday = getYesterdayKey();
+
+    let newActivityMap = { ...activityMap };
+    
+    if (!newActivityMap[today]) {
+      newActivityMap[today] = categoryKey;
+      setActivityMap(newActivityMap);
+      localStorage.setItem('tesoros_activity_map', JSON.stringify(newActivityMap));
+    }
+
+    let newStreak = streak;
+    if (lastActiveDate === today) {
+      if (newStreak === 0) newStreak = 1;
+    } else if (lastActiveDate === yesterday) {
+      newStreak = streak + 1;
+    } else {
+      newStreak = 1;
+    }
+
+    setStreak(newStreak);
+    setLastActiveDate(today);
+    localStorage.setItem('tesoros_streak', newStreak.toString());
+    localStorage.setItem('tesoros_last_active_date', today);
+  };
+
   const handleGoHome = () => {
     setCurrentCard(null);
     setActiveTab('draw');
@@ -157,18 +181,45 @@ export default function Home() {
     setIsCardSaved(false);
   };
 
+  const isCardInDiary = (card: Card) => {
+    return diary.some(
+      (entry) =>
+        (entry.card['Anverso (Gancho Científico)'] && entry.card['Anverso (Gancho Científico)'] === card['Anverso (Gancho Científico)']) ||
+        entry.card['Modelo (Intención)'] === card['Modelo (Intención)']
+    );
+  };
+
+  const triggerSaveFlightAndSparkle = (cardToAnimate: Card) => {
+    setFlyingCard(cardToAnimate);
+    setIsFlying(true);
+
+    setTimeout(() => {
+      setIsFlying(false);
+      setIsDiarySparkling(true);
+
+      setTimeout(() => {
+        setIsDiarySparkling(false);
+      }, 700);
+    }, 600);
+  };
+
   const handleSelectCategory = (categoryKey: string) => {
+    const today = getTodayKey();
+    const flipsKey = `tesoros_flips_${today}`;
+    const currentFlipsCount = parseInt(localStorage.getItem(flipsKey) || '0', 10);
+
+    if (currentFlipsCount >= 3) {
+      setShowLimitModal(true);
+      return;
+    }
+
     setIsLoading(true);
 
-    // Animación extendida a 1.2 segundos para apreciar el diamante cargando
     setTimeout(() => {
       let deck = cards;
-      let actualCat = categoryKey;
 
       if (categoryKey !== 'RANDOM') {
-        deck = cards.filter(
-          (c) => c['Categoría']?.toUpperCase() === categoryKey
-        );
+        deck = cards.filter((c) => c['Categoría']?.toUpperCase() === categoryKey);
         if (deck.length === 0) deck = cards;
       }
 
@@ -179,21 +230,25 @@ export default function Home() {
         setIsFlipped(false);
         setUserFeeling(null);
         setShowCheckIn(false);
-        setIsCardSaved(false);
+        setIsCardSaved(isCardInDiary(selected));
 
-        const catName = selected['Categoría']?.toUpperCase() || actualCat;
+        const catName = selected['Categoría']?.toUpperCase() || 'SONREÍR';
+        registerDailyActivity(catName);
 
-        // ACTUALIZAR Y GUARDAR ESTADÍSTICAS DEL DÍA
+        const newFlips = currentFlipsCount + 1;
+        setTodayFlips(newFlips);
+        localStorage.setItem(flipsKey, newFlips.toString());
+
+        const updatedTodayCards = [...todayCards, selected];
+        setTodayCards(updatedTodayCards);
+        localStorage.setItem(`tesoros_today_cards_${today}`, JSON.stringify(updatedTodayCards));
+
         setDailyStats((prev) => {
           const updated = {
             ...prev,
             [catName]: (prev[catName] || 0) + 1,
           };
-          const today = getTodayKey();
-          localStorage.setItem(
-            `tesoros_stats_${today}`,
-            JSON.stringify(updated)
-          );
+          localStorage.setItem(`tesoros_stats_${today}`, JSON.stringify(updated));
           return updated;
         });
       }
@@ -201,19 +256,21 @@ export default function Home() {
     }, 1200);
   };
 
+  const handleAnotherDiamondClick = () => {
+    const today = getTodayKey();
+    const currentFlipsCount = parseInt(localStorage.getItem(`tesoros_flips_${today}`) || '0', 10);
+
+    if (currentFlipsCount >= 3) {
+      setShowLimitModal(true);
+    } else {
+      setShowCategoryChoiceModal(true);
+    }
+  };
+
   const handleFlipCard = () => {
     setIsFlipped(!isFlipped);
-
-    if (
-      typeof window !== 'undefined' &&
-      'navigator' in window &&
-      navigator.vibrate
-    ) {
-      try {
-        navigator.vibrate(50);
-      } catch (e) {
-        // Silencioso si no lo soporta
-      }
+    if (typeof window !== 'undefined' && 'navigator' in window && navigator.vibrate) {
+      try { navigator.vibrate(50); } catch (e) {}
     }
   };
 
@@ -225,47 +282,59 @@ export default function Home() {
     setUserFeeling(entry.feeling || null);
   };
 
-  const handleSaveToDiary = () => {
-    if (!currentCard || isCardSaved) return;
+  const saveCardToDiary = (cardToSave: Card, feelingText?: string) => {
+    const existingIndex = diary.findIndex(
+      (e) =>
+        (e.card['Anverso (Gancho Científico)'] && e.card['Anverso (Gancho Científico)'] === cardToSave['Anverso (Gancho Científico)']) ||
+        e.card['Modelo (Intención)'] === cardToSave['Modelo (Intención)']
+    );
 
-    const newEntry: DiaryEntry = {
-      id: Date.now().toString(),
-      date: new Date().toLocaleDateString('es-ES', {
-        day: 'numeric',
-        month: 'short',
-      }),
-      card: currentCard,
-      feeling: userFeeling || undefined,
-    };
+    let updated: DiaryEntry[];
 
-    const updated = [newEntry, ...diary];
+    if (existingIndex >= 0) {
+      updated = [...diary];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        feeling: feelingText || updated[existingIndex].feeling,
+      };
+    } else {
+      const newEntry: DiaryEntry = {
+        id: Date.now().toString(),
+        date: new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
+        card: cardToSave,
+        feeling: feelingText,
+      };
+      updated = [newEntry, ...diary];
+    }
+
     setDiary(updated);
     localStorage.setItem('tesoros_diario', JSON.stringify(updated));
-    setIsCardSaved(true);
+
+    if (currentCard && ((currentCard['Anverso (Gancho Científico)'] && currentCard['Anverso (Gancho Científico)'] === cardToSave['Anverso (Gancho Científico)']) || currentCard['Modelo (Intención)'] === cardToSave['Modelo (Intención)'])) {
+      setIsCardSaved(true);
+    }
+
+    triggerSaveFlightAndSparkle(cardToSave);
+  };
+
+  const handleSaveToDiary = () => {
+    if (!currentCard || isCardSaved) return;
+    saveCardToDiary(currentCard, userFeeling || undefined);
   };
 
   const handleSaveFeeling = (feeling: string) => {
     setUserFeeling(feeling);
     setShowCheckIn(false);
 
-    if (isCardSaved && currentCard) {
-      const updated = diary.map((entry) => {
-        if (
-          entry.card['Anverso (Gancho Científico)'] ===
-          currentCard['Anverso (Gancho Científico)']
-        ) {
-          return { ...entry, feeling };
-        }
-        return entry;
-      });
-      setDiary(updated);
-      localStorage.setItem('tesoros_diario', JSON.stringify(updated));
+    if (currentCard) {
+      saveCardToDiary(currentCard, feeling);
     }
   };
 
-  const handleShare = () => {
-    if (navigator.share && currentCard) {
-      const hookText = cleanText(currentCard['Anverso (Gancho Científico)']);
+  const handleShare = (card?: Card) => {
+    const targetCard = card || currentCard;
+    if (navigator.share && targetCard) {
+      const hookText = cleanText(targetCard['Anverso (Gancho Científico)'] || targetCard['Modelo (Intención)']);
       navigator
         .share({
           title: 'Tesoros del Autodescubrimiento',
@@ -283,13 +352,15 @@ export default function Home() {
     const topKey = sorted[0] ? sorted[0][0] : 'SONREÍR';
     const total = Object.values(dailyStats).reduce((a, b) => a + b, 0);
     const topCount = dailyStats[topKey] || 0;
-    const percentage = total > 0 ? Math.round((topCount / total) * 100) : 42;
+    const percentage = total > 0 ? Math.round((topCount / total) * 100) : 45;
 
     const catObj = CATEGORIES.find((c) => c.key === topKey);
     return {
       label: catObj ? catObj.label : 'SONREÍR',
       percentage,
       color: catObj ? catObj.color : '#FAD02C',
+      sorted,
+      total,
     };
   };
 
@@ -301,91 +372,516 @@ export default function Home() {
     return CATEGORY_COLORS[key] || '#FAD02C';
   };
 
+  const openTodayCarousel = () => {
+    if (todayCards.length === 0) {
+      if (todayFlips >= 3) {
+        setShowLimitModal(true);
+      } else {
+        alert('Aún no has descubierto diamantes hoy. ¡Elige una categoría para empezar!');
+      }
+      return;
+    }
+    setCarouselIndex(0);
+    setModalIsFlipped(false);
+    setShowTodayModal(true);
+  };
+
+  const renderCalendarGrid = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const startOffset = (firstDayIndex + 6) % 7;
+
+    const monthName = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    const gridCells = [];
+
+    for (let i = 0; i < startOffset; i++) {
+      gridCells.push(<div key={`empty-${i}`} className="h-8 w-8" />);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const categoryFound = activityMap[dayKey];
+      const hasActivity = Boolean(categoryFound);
+      const categoryColor = hasActivity
+        ? CATEGORY_COLORS[categoryFound?.toUpperCase()] || '#FAD02C'
+        : 'transparent';
+
+      gridCells.push(
+        <div key={dayKey} className="flex items-center justify-center h-8 w-8 relative">
+          {hasActivity ? (
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-sm cursor-pointer border border-black/10 hover:scale-110 transition-transform"
+              style={{ backgroundColor: categoryColor }}
+              title={`Sensación del día: ${categoryFound}`}
+              onClick={() => {
+                setShowStreakModal(false);
+                setCurrentCard(null);
+                setActiveTab('diary');
+              }}
+            >
+              💎
+            </div>
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-[#E3DDD5]/30 flex items-center justify-center text-[11px] font-mono text-[#8A827A]">
+              {day}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3.5 shadow-sm space-y-2.5">
+        <div className="flex justify-between items-center px-1">
+          <h4 className="text-xs font-serif font-bold text-[#1C1817] capitalize">
+            📅 {monthName}
+          </h4>
+          <span className="text-[9px] font-mono text-[#997343] font-semibold uppercase">
+            Mapa de Tesoros
+          </span>
+        </div>
+        <div className="grid grid-cols-7 text-center text-[10px] font-bold text-[#8A827A] font-mono">
+          <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+        </div>
+        <div className="grid grid-cols-7 gap-1 place-items-center">
+          {gridCells}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <style jsx global>{`
-        @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,600&display=swap');
-        
-        .font-open-sans {
-          font-family: 'Open Sans', sans-serif;
-        }
-        .font-playfair {
-          font-family: 'Playfair Display', serif;
-        }
-
         @keyframes pulseGlow {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 0.7;
-          }
-          50% {
-            transform: scale(1.22);
-            opacity: 1;
-            filter: drop-shadow(0 0 18px rgba(200, 138, 52, 0.75));
-          }
+          0%, 100% { transform: scale(1); opacity: 0.7; }
+          50% { transform: scale(1.22); opacity: 1; filter: drop-shadow(0 0 18px rgba(200, 138, 52, 0.75)); }
         }
-
-        .animate-pulse-glow {
-          animation: pulseGlow 1.4s infinite ease-in-out;
-        }
+        .animate-pulse-glow { animation: pulseGlow 1.4s infinite ease-in-out; }
 
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(4px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        .animate-fadeIn { animation: fadeIn 0.35s ease-out forwards; }
 
-        .animate-fadeIn {
-          animation: fadeIn 0.35s ease-out forwards;
+        @keyframes flyToHeaderDiary {
+          0% {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            opacity: 1;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+          }
+          50% {
+            opacity: 0.9;
+            transform: translate(-50%, -50%) scale(0.45) rotate(-12deg);
+          }
+          100% {
+            top: 24px;
+            left: calc(100% - 75px);
+            transform: translate(-50%, -50%) scale(0.08) rotate(18deg);
+            opacity: 0;
+            box-shadow: 0 0 0px rgba(0,0,0,0);
+          }
+        }
+        .animate-fly-card {
+          animation: flyToHeaderDiary 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
       `}</style>
 
-      {/* COMPONENTE DE CARGA / ANIMACIÓN DEL DIAMANTE */}
+      {/* OVERLAY: CARTA VOLADORA */}
+      {isFlying && flyingCard && (
+        <div
+          className="fixed z-50 pointer-events-none rounded-3xl p-4 flex flex-col items-center justify-center text-center animate-fly-card border-2 border-white/60"
+          style={{
+            width: '200px',
+            height: '280px',
+            backgroundColor: getCardColor(flyingCard['Categoría']),
+            color: '#1C1817',
+          }}
+        >
+          <div className="text-4xl mb-2">💎</div>
+          <p className="text-xs font-serif italic font-bold leading-tight line-clamp-3">
+            &ldquo;{cleanText(flyingCard['Anverso (Gancho Científico)'] || flyingCard['Modelo (Intención)'])}&rdquo;
+          </p>
+        </div>
+      )}
+
+      {/* PANTALLA DE CARGA */}
       {isLoading && (
         <div className="fixed inset-0 bg-[#FAF8F5]/90 backdrop-blur-md z-50 flex flex-col items-center justify-center animate-fadeIn">
           <div className="text-6xl animate-pulse-glow mb-3">💎</div>
-          <p className="text-xs font-playfair italic text-[#997343] font-semibold tracking-wider">
+          <p className="text-xs font-serif italic text-[#997343] font-semibold tracking-wider">
             Revelando tu diamante...
           </p>
         </div>
       )}
 
-      <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-between p-4 max-w-md mx-auto font-open-sans antialiased">
-        {/* CABECERA CON LOGO */}
-        <header className="w-full flex justify-between items-center mb-3 pt-1 px-1">
-          <button
+      {/* MODAL RACHA Y CALENDARIO */}
+      {showStreakModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-5 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-center bg-amber-100 rounded-full w-16 h-16 border border-amber-200 shadow-inner">
+              <span className="text-4xl animate-bounce">🔥</span>
+            </div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
+                ✦ TU CONSTANCIA ✦
+              </span>
+              <h3 className="text-2xl font-serif font-bold text-[#1C1817] mt-0.5">
+                Racha de {streak} {streak === 1 ? 'día' : 'días'}
+              </h3>
+            </div>
+
+            {renderCalendarGrid()}
+
+            <button
+              onClick={() => setShowStreakModal(false)}
+              className="w-full py-2.5 rounded-xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all shadow-sm"
+            >
+              ¡Continuar!
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: LÍMITE DIARIO */}
+      {showLimitModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
+            <div className="text-5xl">🌙</div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
+                ✦ LÍMITE DIARIO ALCANZADO ✦
+              </span>
+              <h3 className="text-xl font-serif font-bold text-[#1C1817] mt-1">
+                ¡Nos vemos mañana!
+              </h3>
+            </div>
+            <p className="text-xs text-[#8A827A] leading-relaxed">
+              Has revelado tus <strong>3 diamantes de hoy</strong> (3/3). Tómate el día para reflexionar e integrar estos mensajes. Mañana podrás descubrir nuevos tesoros.
+            </p>
+
+            <div className="w-full space-y-2 pt-2">
+              {todayCards.length > 0 && (
+                <button
+                  onClick={() => {
+                    setShowLimitModal(false);
+                    openTodayCarousel();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-[#997343] text-white text-xs font-semibold hover:bg-[#836237] transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <span>👁️</span> Ver mis cartas de hoy ({todayCards.length})
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  setShowLimitModal(false);
+                  setCurrentCard(null);
+                  setActiveTab('diary');
+                }}
+                className="w-full py-2.5 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-xs font-semibold hover:bg-gray-50 transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>💰</span> Ir a mis Tesoros
+              </button>
+
+              <button
+                onClick={() => setShowLimitModal(false)}
+                className="w-full py-1.5 text-[#8A827A] text-xs hover:text-[#1C1817]"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: ELECCIÓN DE CATEGORÍA (SIGUIENTE TIRADA) */}
+      {showCategoryChoiceModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
+            <div className="text-4xl">💎</div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
+                ✦ SIGUIENTE TIRADA ✦
+              </span>
+              <h3 className="text-lg font-serif font-bold text-[#1C1817] mt-1">
+                ¿Qué necesitas explorar ahora?
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 w-full pt-1">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat.key}
+                  onClick={() => {
+                    setShowCategoryChoiceModal(false);
+                    handleSelectCategory(cat.key);
+                  }}
+                  className="p-2.5 rounded-xl text-xs font-bold text-[#1C1817] text-center border border-black/5 hover:brightness-105 transition-all shadow-sm uppercase"
+                  style={{ backgroundColor: cat.color }}
+                >
+                  {cat.label}
+                </button>
+              ))}
+              <button
+                onClick={() => {
+                  setShowCategoryChoiceModal(false);
+                  handleSelectCategory('RANDOM');
+                }}
+                className="col-span-2 p-2.5 rounded-xl text-xs font-bold text-[#1C1817] bg-white border border-[#997343]/40 hover:bg-[#FAF8F5] transition-all shadow-sm flex items-center justify-center gap-1.5"
+              >
+                <span>🎲</span> DIAMANTE sorpresa
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowCategoryChoiceModal(false)}
+              className="text-xs text-[#8A827A] hover:text-[#1C1817] pt-1"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHECK-IN ("¿TE AYUDÓ?") */}
+      {showCheckIn && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
+            <div className="text-4xl">❤️‍🩹</div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
+                ✦ REFLEXIÓN DEL MOMENTO ✦
+              </span>
+              <h3 className="text-lg font-serif font-bold text-[#1C1817] mt-1">
+                ¿Cómo te hizo sentir este diamante?
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 w-full">
+              {['😌 Me dio calma', '💡 Me hizo reflexionar', '😊 Me alegró el día', '🔥 Inspirador(a)', '🧘 Sentí paz', '✨ Agradecida'].map(
+                (option) => (
+                  <button
+                    key={option}
+                    onClick={() => handleSaveFeeling(option)}
+                    className="p-2.5 rounded-xl text-xs font-medium bg-white border border-[#E3DDD5] text-[#332E2B] hover:border-[#997343] hover:bg-amber-50/50 transition-all text-left shadow-sm"
+                  >
+                    {option}
+                  </button>
+                )
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowCheckIn(false)}
+              className="text-xs text-[#8A827A] hover:text-[#1C1817] pt-1"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CARRUSEL CARTAS DE HOY */}
+      {showTodayModal && todayCards.length > 0 && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-5 border border-[#E3DDD5] shadow-2xl flex flex-col items-center relative space-y-4">
+            <button
+              onClick={() => setShowTodayModal(false)}
+              className="absolute top-3 right-4 text-[#8A827A] hover:text-[#1C1817] text-lg font-bold p-1"
+            >
+              ✕
+            </button>
+
+            <div className="text-center">
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
+                ✦ TIRADAS DE HOY ✦
+              </span>
+              <h3 className="text-lg font-serif font-semibold text-[#1C1817]">
+                Tus diamantes del día ({carouselIndex + 1}/{todayCards.length})
+              </h3>
+            </div>
+
+            {/* CARTA CARRUSEL */}
+            {todayCards[carouselIndex] && (
+              <div
+                className="w-full aspect-[63/88] max-h-[360px] cursor-pointer my-1 group"
+                style={{ perspective: '1000px' }}
+                onClick={() => setModalIsFlipped(!modalIsFlipped)}
+              >
+                <div
+                  className="w-full h-full relative transition-transform duration-700 rounded-2xl shadow-md border border-black/5"
+                  style={{
+                    transformStyle: 'preserve-3d',
+                    transform: modalIsFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                  }}
+                >
+                  {/* ANVERSO CARRUSEL */}
+                  <div
+                    className="absolute inset-0 rounded-2xl p-4 flex flex-col justify-between items-center text-center overflow-hidden border-2 border-white/20"
+                    style={{
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                      backgroundColor: getCardColor(todayCards[carouselIndex]['Categoría']),
+                      color: '#1C1817',
+                    }}
+                  >
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      {todayCards[carouselIndex]['Categoría']}
+                    </span>
+                    <div className="my-auto flex flex-col items-center">
+                      <div className="text-4xl mb-2">💎</div>
+                      <p className="text-base font-serif italic font-semibold leading-snug">
+                        {cleanText(
+                          todayCards[carouselIndex]['Anverso (Gancho Científico)'] ||
+                          todayCards[carouselIndex]['Modelo (Intención)']
+                        )}
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-[#1C1817]/70">🔄 Toca para girar</span>
+                  </div>
+
+                  {/* REVERSO CARRUSEL */}
+                  <div
+                    className="absolute inset-0 rounded-2xl p-4 flex flex-col justify-between items-center text-center overflow-hidden bg-white border-2 border-[#FAF8F5]"
+                    style={{
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden',
+                      transform: 'rotateY(180deg)',
+                      color: '#1C1817',
+                    }}
+                  >
+                    <span className="text-[10px] uppercase font-semibold text-[#997343]">
+                      {todayCards[carouselIndex]['Categoría']}
+                    </span>
+                    <div className="my-auto flex flex-col items-center">
+                      <div className="text-2xl mb-1">{todayCards[carouselIndex]['Icono'] || '💎'}</div>
+                      <p className="text-sm text-[#2C2523]">
+                        {cleanText(
+                          todayCards[carouselIndex]['Reverso (Instrucción de Activación)'] ||
+                          todayCards[carouselIndex]['Anverso (Gancho Científico)']
+                        )}
+                      </p>
+                    </div>
+                    <span className="text-[8px] text-[#B5AEA7] uppercase">Tesoros del Autodescubrimiento</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CONTROLES CARRUSEL */}
+            <div className="flex justify-between items-center w-full px-2">
+              <button
+                disabled={carouselIndex === 0}
+                onClick={() => {
+                  setCarouselIndex((prev) => Math.max(0, prev - 1));
+                  setModalIsFlipped(false);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  carouselIndex === 0
+                    ? 'opacity-30 cursor-not-allowed bg-gray-200'
+                    : 'bg-white border border-[#E3DDD5] text-[#332E2B] hover:bg-gray-100'
+                }`}
+              >
+                ← Anterior
+              </button>
+
+              <div className="flex gap-1">
+                {todayCards.map((_, idx) => (
+                  <span
+                    key={idx}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      idx === carouselIndex ? 'bg-[#997343] w-4' : 'bg-[#E3DDD5]'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              <button
+                disabled={carouselIndex === todayCards.length - 1}
+                onClick={() => {
+                  setCarouselIndex((prev) => Math.min(todayCards.length - 1, prev + 1));
+                  setModalIsFlipped(false);
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                  carouselIndex === todayCards.length - 1
+                    ? 'opacity-30 cursor-not-allowed bg-gray-200'
+                    : 'bg-white border border-[#E3DDD5] text-[#332E2B] hover:bg-gray-100'
+                }`}
+              >
+                Siguiente →
+              </button>
+            </div>
+
+            <div className="w-full pt-1">
+              {isCardInDiary(todayCards[carouselIndex]) ? (
+                <div className="w-full py-2 bg-[#997343]/15 text-[#997343] rounded-xl text-center text-xs font-semibold">
+                  ✨ Esta carta ya está guardada en tus tesoros
+                </div>
+              ) : (
+                <button
+                  onClick={() => saveCardToDiary(todayCards[carouselIndex])}
+                  className="w-full py-2 bg-[#1C1817] text-white rounded-xl text-xs font-medium hover:bg-[#332E2B] transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  <span>💎</span>
+                  <span>Guardar esta carta en mis tesoros</span>
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COMPONENTE PRINCIPAL */}
+      <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-between pb-20 p-4 max-w-md mx-auto antialiased">
+        
+        {/* NUEVO ENCABEZADO MEJORADO */}
+        <header className="w-full flex justify-between items-center mb-3 pt-1 px-1 border-b border-[#E3DDD5]/40 pb-3">
+          <button 
             onClick={handleGoHome}
-            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity text-left group"
-            title="Volver al inicio"
+            className="flex items-center gap-2 text-left hover:opacity-80 transition-opacity"
           >
-            <span className="text-sm transform group-hover:scale-125 transition-transform">
+            <div className="w-8 h-8 rounded-full bg-[#1C1817] text-white flex items-center justify-center text-xs font-bold shadow-sm">
               💎
-            </span>
-            <span className="text-xs font-playfair italic text-[#332E2B] font-semibold underline underline-offset-2 decoration-[#997343]/40">
-              Tesoros del Autodescubrimiento
-            </span>
+            </div>
+            <div>
+              <h1 className="font-serif font-bold text-xs tracking-wide text-[#1C1817]">TESOROS</h1>
+              <p className="text-[9px] font-mono text-[#997343] tracking-widest uppercase">Autodescubrimiento</p>
+            </div>
           </button>
 
-          <div className="flex gap-3 text-xs font-playfair italic">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => {
-                setCurrentCard(null);
-                setActiveTab('diary');
-              }}
-              className={`text-[#997343] hover:underline ${
-                activeTab === 'diary' ? 'font-bold underline' : ''
-              }`}
+              onClick={openTodayCarousel}
+              className="px-2.5 py-1 rounded-full bg-amber-50 border border-amber-200/80 text-[#997343] text-xs font-bold flex items-center gap-1 hover:bg-amber-100 transition-colors shadow-2xs"
+              title="Ver cartas de hoy"
             >
-              📖 Mi Diario ({diary.length})
+              <span>💎</span>
+              <span>{todayFlips}/3</span>
             </button>
+
+            <button
+              onClick={() => setShowStreakModal(true)}
+              className="px-2.5 py-1 rounded-full bg-white border border-[#E3DDD5] text-[#1C1817] text-xs font-bold flex items-center gap-1 hover:border-[#997343] transition-all shadow-2xs"
+            >
+              <span className="text-amber-500">🔥</span>
+              <span>{streak}</span>
+            </button>
+
             <button
               onClick={() => {
                 setCurrentCard(null);
                 setActiveTab('mission');
               }}
-              className={`text-[#8A827A] hover:underline ${
-                activeTab === 'mission'
-                  ? 'font-bold underline text-[#332E2B]'
-                  : ''
+              className={`text-[#8A827A] hover:underline text-xs ${
+                activeTab === 'mission' ? 'font-bold underline text-[#332E2B]' : ''
               }`}
             >
               🇻🇪 Misión
@@ -393,68 +889,25 @@ export default function Home() {
           </div>
         </header>
 
-        {/* PESTAÑA PRINCIPAL */}
+        {/* PESTAÑA PRINCIPAL: HOY (TIRADA) */}
         {activeTab === 'draw' && (
           <>
             {!currentCard ? (
-              <div className="w-full flex-1 flex flex-col items-center justify-center space-y-3 my-1">
-                {/* PREGUNTA PRINCIPAL */}
+              <div className="w-full flex-1 flex flex-col items-center justify-center space-y-4 my-auto">
                 <div className="text-center space-y-1">
                   <div className="text-xs font-mono tracking-widest text-[#997343] uppercase">
                     ✦ 💎 ✦
                   </div>
-                  <h1 className="text-2xl font-playfair text-[#1C1817] font-semibold tracking-tight text-center">
+                  <h1 className="text-2xl font-serif text-[#1C1817] font-semibold tracking-tight text-center">
                     ¿Qué necesitas hoy para estar mejor?
                   </h1>
-                  <p className="text-xs text-[#8A827A] font-light max-w-[280px] mx-auto text-center leading-relaxed font-open-sans">
+                  <p className="text-xs text-[#8A827A] font-light max-w-[280px] mx-auto text-center leading-relaxed">
                     Elige la categoría que más resuene contigo.
                   </p>
                 </div>
 
-                {/* GRÁFICO TERMÓMETRO (BASADO EN LAS SELECCIONES DE HOY) */}
-                <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3 shadow-sm flex items-center gap-3">
-                  <div className="relative w-11 h-11 flex items-center justify-center shrink-0">
-                    <svg
-                      className="w-11 h-11 transform -rotate-90"
-                      viewBox="0 0 36 36"
-                    >
-                      <path
-                        className="text-[#EAE5DF]"
-                        strokeWidth="4"
-                        stroke="currentColor"
-                        fill="none"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                      <path
-                        strokeWidth="4"
-                        strokeDasharray={`${mostNeeded.percentage}, 100`}
-                        strokeLinecap="round"
-                        stroke={mostNeeded.color}
-                        fill="none"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                    </svg>
-                    <span className="absolute text-[10px] font-bold text-[#1C1817] font-open-sans">
-                      {mostNeeded.percentage}%
-                    </span>
-                  </div>
-                  <div className="text-left space-y-0.5">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-[#997343] font-open-sans">
-                      LO QUE MÁS RESUENA HOY
-                    </p>
-                    <p className="text-xs font-playfair italic text-[#2C2523] leading-tight">
-                      La comunidad necesita principalmente{' '}
-                      <strong className="font-semibold text-[#1C1817]">
-                        {mostNeeded.label}
-                      </strong>
-                      .
-                    </p>
-                  </div>
-                </div>
-
-                {/* RUEDA DE CARTAS EN CÍRCULO */}
-                <div className="grid grid-cols-3 gap-2.5 w-full items-center py-1">
-                  {/* FILA 1: ARRIBA (3 CARTAS) */}
+                {/* BOTONES DE CATEGORÍAS */}
+                <div className="grid grid-cols-3 gap-2.5 w-full items-center py-2">
                   {CATEGORIES.slice(0, 3).map((cat) => (
                     <button
                       key={cat.key}
@@ -465,21 +918,18 @@ export default function Home() {
                       <span className="text-[10px] font-mono opacity-60 group-hover:scale-125 transition-transform">
                         💎
                       </span>
-
                       <div className="flex flex-col items-center justify-center space-y-0.5 px-0.5 my-auto">
-                        <span className="text-xs font-open-sans font-bold text-[#1C1817] leading-tight text-center uppercase tracking-wider">
+                        <span className="text-xs font-bold text-[#1C1817] leading-tight text-center uppercase tracking-wider">
                           {cat.label}
                         </span>
-                        <span className="text-[9px] font-open-sans font-normal text-[#1C1817]/80 text-center leading-tight">
+                        <span className="text-[9px] font-normal text-[#1C1817]/80 text-center leading-tight">
                           {cat.sub}
                         </span>
                       </div>
-
                       <span className="text-[8px] font-mono opacity-40">✦</span>
                     </button>
                   ))}
 
-                  {/* FILA 2: CENTRO - DIAMANTE SORPRESA */}
                   <div className="col-span-3 py-1 flex justify-center">
                     <button
                       onClick={() => handleSelectCategory('RANDOM')}
@@ -488,17 +938,15 @@ export default function Home() {
                       <div className="text-4xl transform group-hover:scale-125 group-hover:rotate-12 transition-transform duration-300 mb-1 drop-shadow-sm">
                         💎
                       </div>
-                      <span className="text-xs font-playfair italic font-bold text-[#1C1817] uppercase tracking-wider">
+                      <span className="text-xs font-serif italic font-bold text-[#1C1817] uppercase tracking-wider">
                         DIAMANTE sorpresa
                       </span>
-                      <span className="text-[10px] text-[#8A827A] font-light mt-0.5 max-w-[240px] font-open-sans">
-                        un tesoro aleatorio que te dirá justo lo que necesitas
-                        hoy
+                      <span className="text-[10px] text-[#8A827A] font-light mt-0.5 max-w-[240px]">
+                        un tesoro aleatorio que te dirá justo lo que necesitas hoy
                       </span>
                     </button>
                   </div>
 
-                  {/* FILA 3: ABAJO (3 CARTAS) */}
                   {CATEGORIES.slice(3, 6).map((cat) => (
                     <button
                       key={cat.key}
@@ -509,16 +957,14 @@ export default function Home() {
                       <span className="text-[10px] font-mono opacity-60 group-hover:scale-125 transition-transform">
                         💎
                       </span>
-
                       <div className="flex flex-col items-center justify-center space-y-0.5 px-0.5 my-auto">
-                        <span className="text-xs font-open-sans font-bold text-[#1C1817] leading-tight text-center uppercase tracking-wider">
+                        <span className="text-xs font-bold text-[#1C1817] leading-tight text-center uppercase tracking-wider">
                           {cat.label}
                         </span>
-                        <span className="text-[9px] font-open-sans font-normal text-[#1C1817]/80 text-center leading-tight">
+                        <span className="text-[9px] font-normal text-[#1C1817]/80 text-center leading-tight">
                           {cat.sub}
                         </span>
                       </div>
-
                       <span className="text-[8px] font-mono opacity-40">✦</span>
                     </button>
                   ))}
@@ -527,23 +973,22 @@ export default function Home() {
             ) : (
               /* VISTA DE CARTA SELECCIONADA */
               <div className="w-full flex-1 flex flex-col items-center justify-between my-1 animate-fadeIn">
-                {/* BOTÓN VOLVER ARRIBA DE LA CARTA */}
                 <div className="w-full flex justify-between items-center mb-1">
                   <button
                     onClick={handleGoHome}
-                    className="text-xs text-[#8A827A] hover:text-[#332E2B] font-light flex items-center gap-1 transition-colors font-open-sans"
+                    className="text-xs text-[#8A827A] hover:text-[#332E2B] font-light flex items-center gap-1 transition-colors"
                   >
                     ← elegir otro diamante
                   </button>
 
                   {isCardSaved && (
-                    <span className="text-[10px] font-playfair italic text-[#997343] font-semibold bg-[#997343]/10 px-2.5 py-0.5 rounded-full">
-                      ✨ Guardado en tu diario
+                    <span className="text-[10px] font-serif italic text-[#997343] font-semibold bg-[#997343]/10 px-2.5 py-0.5 rounded-full">
+                      ✨ Guardado en tus tesoros
                     </span>
                   )}
                 </div>
 
-                {/* CONTENEDOR CARTA 3D FLIP */}
+                {/* CARTA 3D FLIP */}
                 <div
                   className="w-full aspect-[63/88] max-h-[460px] cursor-pointer my-1 group"
                   style={{ perspective: '1000px' }}
@@ -553,12 +998,10 @@ export default function Home() {
                     className="w-full h-full relative transition-transform duration-700 rounded-[28px] shadow-[0_15px_35px_rgba(0,0,0,0.08)] group-hover:shadow-[0_0_30px_rgba(255,255,255,0.9)] border border-black/5"
                     style={{
                       transformStyle: 'preserve-3d',
-                      transform: isFlipped
-                        ? 'rotateY(180deg)'
-                        : 'rotateY(0deg)',
+                      transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
                     }}
                   >
-                    {/* ANVERSO (FRENTE) */}
+                    {/* ANVERSO */}
                     <div
                       className="absolute inset-0 rounded-[28px] p-6 flex flex-col justify-between items-center text-center overflow-hidden border-4 border-white/20"
                       style={{
@@ -568,35 +1011,35 @@ export default function Home() {
                         color: '#1C1817',
                       }}
                     >
-                      {/* 1. CATEGORÍA */}
-                      <div className="pt-2">
-                        <h2 className="text-xl font-open-sans font-bold tracking-widest text-[#1C1817] uppercase text-center">
+                      <div className="pt-2 flex flex-col items-center gap-1">
+                        <h2 className="text-xl font-bold tracking-widest text-[#1C1817] uppercase text-center">
                           {currentCard['Categoría']}
                         </h2>
+                        {currentCard['Modelo (Intención)'] && (
+                          <span className="text-[10px] font-mono uppercase bg-white/40 px-2 py-0.5 rounded-full border border-black/5 font-semibold">
+                            ✦ {cleanText(currentCard['Modelo (Intención)'])}
+                          </span>
+                        )}
                       </div>
 
-                      {/* 2. DIAMANTE CON TRANSPARENCIA + HOOK +10% MÁS GRANDE Y CENTRADO EN EL MEDIO */}
                       <div className="my-auto flex flex-col items-center justify-center space-y-3 px-1 w-full">
-                        <div className="text-[72px] leading-none opacity-75 drop-shadow-sm transform group-hover:scale-105 transition-transform duration-300">
+                        <div className="text-[64px] leading-none opacity-75 drop-shadow-sm transform group-hover:scale-105 transition-transform duration-300">
                           💎
                         </div>
-
-                        <p className="text-2xl font-playfair italic text-[#1C1817] text-center font-semibold leading-snug px-1">
-                          {cleanText(
+                        <p className="text-xl font-serif italic text-[#1C1817] text-center font-semibold leading-snug px-1">
+                          &ldquo;{cleanText(
                             currentCard['Anverso (Gancho Científico)'] ||
                               currentCard['Modelo (Intención)']
-                          )}
+                          )}&rdquo;
                         </p>
                       </div>
 
-                      {/* 3. TOCA PARA GIRAR */}
-                      <div className="pb-1 text-xs text-[#1C1817]/80 font-light flex items-center justify-center gap-1.5 animate-bounce font-open-sans">
-                        <span className="text-xs">🔄</span> toca para girar la
-                        carta
+                      <div className="pb-1 text-xs text-[#1C1817]/80 font-light flex items-center justify-center gap-1.5 animate-bounce">
+                        <span className="text-xs">🔄</span> toca para girar la carta
                       </div>
                     </div>
 
-                    {/* REVERSO (ATRÁS) */}
+                    {/* REVERSO */}
                     <div
                       className="absolute inset-0 rounded-[28px] p-6 flex flex-col justify-between items-center text-center overflow-hidden bg-white border-4 border-[#FAF8F5]"
                       style={{
@@ -606,36 +1049,28 @@ export default function Home() {
                         color: '#1C1817',
                       }}
                     >
-                      {/* CATEGORÍA MÁS PEQUEÑA ARRIBA */}
                       <div className="pt-2 w-full">
-                        <h2 className="text-[10px] font-open-sans font-semibold text-[#997343]/80 text-center uppercase tracking-widest">
+                        <h2 className="text-[10px] font-semibold text-[#997343]/80 text-center uppercase tracking-widest">
                           {currentCard['Categoría']}
                         </h2>
                       </div>
 
-                      {/* BLOQUE CENTRAL: EMOJI, MODELO DESTACADO MÁS GRANDE Y MENSAJE SIEMPRE CENTRADO */}
                       <div className="my-auto w-full flex flex-col items-center justify-center space-y-3 px-1">
-                        <div className="text-4xl">
-                          {currentCard['Icono'] || '💎'}
-                        </div>
-
+                        <div className="text-4xl">{currentCard['Icono'] || '💎'}</div>
                         {currentCard['Modelo (Intención)'] && (
-                          <p className="text-base font-playfair font-bold italic tracking-wide uppercase text-[#D9A24A] text-center">
+                          <p className="text-sm font-serif font-bold italic tracking-wide uppercase text-[#D9A24A] text-center">
                             {cleanText(currentCard['Modelo (Intención)'])}
                           </p>
                         )}
-
-                        <p className="text-base text-[#2C2523] font-open-sans font-normal leading-relaxed text-center px-1">
+                        <p className="text-base text-[#2C2523] font-normal leading-relaxed text-center px-1">
                           {cleanText(
-                            currentCard[
-                              'Reverso (Instrucción de Activación)'
-                            ] || currentCard['Anverso (Gancho Científico)']
+                            currentCard['Reverso (Instrucción de Activación)'] ||
+                              currentCard['Anverso (Gancho Científico)']
                           )}
                         </p>
                       </div>
 
-                      {/* PIE DE CARTA REVERSO */}
-                      <div className="pb-1 text-[9px] text-[#B5AEA7] tracking-widest font-open-sans uppercase">
+                      <div className="pb-1 text-[9px] text-[#B5AEA7] tracking-widest uppercase">
                         Tesoros del Autodescubrimiento
                       </div>
                     </div>
@@ -646,8 +1081,8 @@ export default function Home() {
                 {isFlipped ? (
                   <div className="w-full space-y-2 my-2 animate-fadeIn">
                     <button
-                      onClick={() => handleSelectCategory('RANDOM')}
-                      className="w-full py-2.5 rounded-xl bg-[#1C1817] text-white text-xs font-playfair italic font-medium flex items-center justify-center gap-1.5 hover:bg-[#332E2B] shadow-sm transition-all"
+                      onClick={handleAnotherDiamondClick}
+                      className="w-full py-2.5 rounded-xl bg-[#1C1817] text-white text-xs font-serif italic font-medium flex items-center justify-center gap-1.5 hover:bg-[#332E2B] shadow-sm transition-all"
                     >
                       <span>✨</span>
                       <span>Sacar otro diamante</span>
@@ -676,7 +1111,7 @@ export default function Home() {
                       </button>
 
                       <button
-                        onClick={handleShare}
+                        onClick={() => handleShare()}
                         className="py-2 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[11px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
                       >
                         <span>📤</span>
@@ -688,19 +1123,16 @@ export default function Home() {
                   <div className="h-16 my-2" />
                 )}
 
-                {/* PIE DE PÁGINA GOFUNDME */}
+                {/* FOOTER */}
                 <div className="w-full flex flex-col items-center gap-1 text-center px-1">
-                  <p className="text-[10px] text-[#8A827A] font-light leading-relaxed max-w-[320px] mx-auto text-center font-open-sans">
-                    Tesoros del Autodescubrimiento nació después de los
-                    terremotos en Venezuela como parte de las donaciones que
-                    están pasando desapercibidas, tales como el apoyo emocional
-                    ❤️‍🩹. Cada caja física llega primero a quien más la necesita.
+                  <p className="text-[10px] text-[#8A827A] font-light leading-relaxed max-w-[320px] mx-auto text-center">
+                    Tesoros del Autodescubrimiento nació después de los terremotos en Venezuela como parte de las donaciones que están pasando desapercibidas, tales como el apoyo emocional ❤️‍🩹. Cada caja física llega primero a quien más la necesita.
                   </p>
                   <a
                     href="https://gofundme.com"
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-block text-xs font-playfair italic text-[#997343] underline pt-0.5 hover:text-[#1C1817]"
+                    className="inline-block text-xs font-serif italic text-[#997343] underline pt-0.5 hover:text-[#1C1817]"
                   >
                     apoyar en GoFundMe →
                   </a>
@@ -710,114 +1142,229 @@ export default function Home() {
           </>
         )}
 
-        {/* PESTAÑA: MI DIARIO */}
+        {/* PESTAÑA: TESOROS (DIARIO) */}
         {activeTab === 'diary' && (
-          <div className="w-full flex-1 overflow-y-auto space-y-3 my-2 pr-1 max-h-[72vh] animate-fadeIn">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-playfair italic text-[#1C1817]">
-                Tu Diario de Reflexión 💎
-              </h2>
+          <div className="w-full flex-1 overflow-y-auto space-y-3.5 my-2 pr-1 max-h-[75vh] animate-fadeIn">
+            <div className="flex justify-between items-center mb-1">
+              <div>
+                <h2 className="text-xl font-serif italic text-[#1C1817] font-semibold">
+                  Tus Tesoros Guardados 💰
+                </h2>
+                <p className="text-[11px] text-[#8A827A]">
+                  Tus joyas guardadas y cómo te hicieron sentir
+                </p>
+              </div>
               <button
                 onClick={handleGoHome}
-                className="text-xs text-[#8A827A] hover:text-[#1C1817] font-open-sans"
+                className="text-xs text-[#8A827A] hover:text-[#1C1817] font-semibold bg-white border border-[#E3DDD5] px-3 py-1.5 rounded-xl shadow-2xs"
               >
                 ← Volver
               </button>
             </div>
+
             {diary.length === 0 ? (
-              <div className="text-center py-20 text-[#8A827A] text-xs font-light space-y-2 font-open-sans">
-                <p className="text-3xl">📖</p>
-                <p className="font-playfair italic text-sm text-[#332E2B]">
-                  Aún no has guardado tesoros en tu diario.
+              <div className="text-center py-20 text-[#8A827A] text-xs font-light space-y-2">
+                <p className="text-3xl">💰</p>
+                <p className="font-serif italic text-sm text-[#332E2B]">
+                  Aún no has guardado tesoros en tu colección.
                 </p>
                 <p>
-                  Gira una carta y presiona <strong>&quot;Guardar&quot;</strong> para
-                  conservarla aquí.
+                  Gira una carta y presiona <strong>&quot;Guardar&quot;</strong> para conservarla aquí.
                 </p>
               </div>
             ) : (
-              diary.map((entry) => (
-                <button
-                  key={entry.id}
-                  onClick={() => handleOpenFromDiary(entry)}
-                  className="w-full rounded-2xl p-4 shadow-sm border border-black/5 space-y-2 text-left relative overflow-hidden transition-transform hover:scale-[1.02] active:scale-95 group"
-                  style={{
-                    backgroundColor: getCardColor(entry.card['Categoría']),
-                  }}
-                >
-                  <div className="flex justify-between items-center text-[10px] font-bold text-[#1C1817]/70 uppercase tracking-wider font-open-sans">
-                    <span>💎 {entry.card['Categoría']}</span>
-                    <span>{entry.date}</span>
-                  </div>
-                  <p className="text-xs font-playfair italic font-bold text-[#1C1817] text-center">
-                    &ldquo;
-                    {cleanText(
-                      entry.card['Anverso (Gancho Científico)'] ||
-                        entry.card['Modelo (Intención)']
-                    )}
-                    &rdquo;
-                  </p>
-                  <p className="text-[11px] text-[#1C1817]/90 font-open-sans font-normal leading-relaxed text-center">
-                    {cleanText(
-                      entry.card['Reverso (Instrucción de Activación)']
-                    )}
-                  </p>
+              diary.map((entry) => {
+                const gancho = cleanText(
+                  entry.card['Anverso (Gancho Científico)'] || entry.card['Modelo (Intención)']
+                );
+                const instruccion = cleanText(entry.card['Reverso (Instrucción de Activación)']);
+                const modelo = cleanText(entry.card['Modelo (Intención)']);
+                const catName = entry.card['Categoría']?.toUpperCase() || 'SONREÍR';
 
-                  <div className="text-[10px] font-open-sans text-[#1C1817]/80 pt-1.5 border-t border-black/10 flex items-center justify-between">
-                    <span>
-                      {entry.feeling
-                        ? `Sentimiento: ${entry.feeling}`
-                        : 'Toca para abrir este diamante'}
-                    </span>
-                    <span className="font-bold group-hover:translate-x-1 transition-transform">
-                      ver carta →
-                    </span>
+                return (
+                  <div
+                    key={entry.id}
+                    onClick={() => handleOpenFromDiary(entry)}
+                    className="w-full rounded-[24px] p-4 shadow-sm border border-black/5 space-y-3 text-left relative overflow-hidden transition-all hover:scale-[1.01] active:scale-95 cursor-pointer group"
+                    style={{
+                      backgroundColor: getCardColor(entry.card['Categoría']),
+                    }}
+                  >
+                    <div className="flex justify-between items-center text-xs font-bold text-[#1C1817] uppercase tracking-wider">
+                      <span className="flex items-center gap-1.5 bg-white/40 backdrop-blur-xs px-2.5 py-1 rounded-full border border-black/10">
+                        <span>{entry.card['Icono'] || '💎'}</span>
+                        <span>{catName}</span>
+                      </span>
+                      <span className="text-[10px] font-extrabold text-[#1C1817]/80 bg-white/40 px-2 py-0.5 rounded-md">
+                        {entry.date ? entry.date.toUpperCase() : 'HOY'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 py-0.5">
+                      {modelo && (
+                        <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#1C1817]/70">
+                          ✦ INTENCIÓN: {modelo}
+                        </p>
+                      )}
+                      <p className="text-base font-serif italic font-bold text-[#1C1817] leading-snug">
+                        &ldquo;{gancho}&rdquo;
+                      </p>
+                      {instruccion && instruccion !== gancho && (
+                        <p className="text-xs text-[#1C1817]/90 leading-relaxed bg-white/40 p-2.5 rounded-xl border border-black/5">
+                          <strong className="font-semibold text-[#1C1817]">Acción:</strong> {instruccion}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-black/10 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 bg-white/60 px-2.5 py-1 rounded-full border border-black/10">
+                        <span className="text-xs">❤️‍🩹</span>
+                        <span className="text-[11px] font-bold text-[#1C1817]">
+                          {entry.feeling ? `Emoción: ${entry.feeling}` : 'Carta guardada'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-semibold text-[#1C1817]/70 group-hover:underline">
+                        Abrir carta 🔄
+                      </span>
+                    </div>
                   </div>
-                </button>
-              ))
+                );
+              })
             )}
           </div>
         )}
 
-        {/* PESTAÑA: MISIÓN */}
-        {activeTab === 'mission' && (
-          <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 text-center px-1 animate-fadeIn">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-playfair italic text-[#1C1817]">
-                Nuestra Misión 🇻🇪
-              </h2>
+        {/* PESTAÑA: ESPEJO (TERMÓMETRO COLECTIVO) */}
+        {activeTab === 'thermometer' && (
+          <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[75vh] animate-fadeIn">
+            <div className="flex justify-between items-center mb-1">
+              <div>
+                <h2 className="text-xl font-serif italic text-[#1C1817] font-semibold">
+                  🪞 Espejo Colectivo
+                </h2>
+                <p className="text-[11px] text-[#8A827A]">
+                Porque, aún en la distancia, respiramos juntos.
+                </p>
+              </div>
               <button
                 onClick={handleGoHome}
-                className="text-xs text-[#8A827A] hover:text-[#1C1817] font-open-sans"
+                className="text-xs text-[#8A827A] hover:text-[#1C1817] font-semibold bg-white border border-[#E3DDD5] px-3 py-1.5 rounded-xl shadow-2xs"
               >
                 ← Volver
               </button>
             </div>
-            <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#EAE5DF] text-left space-y-3.5 text-xs leading-relaxed text-[#524B45] font-open-sans">
-              <p className="text-sm font-playfair italic text-[#1C1817] font-semibold text-center">
-                &ldquo;El apoyo emocional también salva vidas.&rdquo;
-              </p>
+
+            {/* VISTA RESUMEN DEL ESPEJO */}
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
+                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
+                    <path
+                      className="text-[#EAE5DF]"
+                      strokeWidth="3.8"
+                      stroke="currentColor"
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                    <path
+                      strokeWidth="3.8"
+                      strokeDasharray={`${mostNeeded.percentage}, 100`}
+                      strokeLinecap="round"
+                      stroke={mostNeeded.color}
+                      fill="none"
+                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                    />
+                  </svg>
+                  <span className="absolute text-xs font-bold text-[#1C1817]">
+                    {mostNeeded.percentage}%
+                  </span>
+                </div>
+                <div className="text-left space-y-1">
+                  <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-[#997343]">
+                    LO QUE MÁS RESUENA HOY
+                  </p>
+                  <p className="text-sm font-serif italic text-[#2C2523] leading-tight">
+                    La comunidad necesita principalmente{' '}
+                    <strong className="font-bold text-[#1C1817]">
+                      {mostNeeded.label}
+                    </strong>
+                  </p>
+                </div>
+              </div>
+
+              {/* DESGLOSE POR CATEGORÍA */}
+              <div className="space-y-2 pt-2 border-t border-[#E3DDD5]/60">
+                <p className="text-[10px] font-mono text-[#8A827A] uppercase tracking-wider font-semibold">
+                  Desglose de necesidades
+                </p>
+                {mostNeeded.sorted.map(([catKey, count]) => {
+                  const catObj = CATEGORIES.find((c) => c.key === catKey);
+                  const pct = mostNeeded.total > 0 ? Math.round((count / mostNeeded.total) * 100) : 0;
+                  return (
+                    <div key={catKey} className="space-y-1">
+                      <div className="flex justify-between text-xs font-medium">
+                        <span className="text-[#1C1817] font-semibold">{catKey}</span>
+                        <span className="text-[#8A827A]">{pct}%</span>
+                      </div>
+                      <div className="w-full bg-[#EAE5DF] h-2 rounded-full overflow-hidden">
+                        <div
+                          className="h-full transition-all duration-500"
+                          style={{
+                            width: `${pct}%`,
+                            backgroundColor: catObj ? catObj.color : '#997343',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* PESTAÑA: MISIÓN VENEZUELA */}
+        {activeTab === 'mission' && (
+          <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[72vh] animate-fadeIn">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-serif italic text-[#1C1817]">
+                Nuestra Misión 🇻🇪
+              </h2>
+              <button
+                onClick={handleGoHome}
+                className="text-xs text-[#8A827A] hover:text-[#1C1817]"
+              >
+                ← Volver
+              </button>
+            </div>
+
+            <div className="bg-white border border-[#E3DDD5] rounded-3xl p-5 shadow-sm space-y-4 text-xs text-[#332E2B] leading-relaxed">
+              <div className="text-center space-y-1">
+                <div className="text-3xl">💎 ❤️‍🩹</div>
+                <h3 className="text-base font-serif italic font-bold text-[#1C1817]">
+                  Tesoros del Autodescubrimiento
+                </h3>
+              </div>
+
               <p>
-                Tesoros del Autodescubrimiento nació después de los terremotos
-                en Venezuela como parte de las donaciones que están pasando
-                desapercibidas, tales como el apoyo emocional ❤️‍🩹.
+                Este proyecto nació después de los terremotos e imprevistos en Venezuela como una respuesta concreta a una necesidad que suele pasar desapercibida: el <strong>apoyo emocional y la salud mental</strong> en momentos de crisis.
               </p>
-              <p>
-                Cada caja física llega primero a quien más la necesita y esta
-                versión digital ayuda a medir el impacto de la herramienta y a
-                que llegue a más personas.
-              </p>
-              <p className="font-medium text-[#1C1817]">
-                Con cada donación estarás cubriendo costes de envío y yo me
-                encargo de hacerles llegar su caja física directamente a sus
-                manos.
-              </p>
-              <div className="pt-3 text-center">
+
+              <div className="bg-[#997343]/10 rounded-2xl p-4 border border-[#997343]/20 space-y-2">
+                <p className="font-serif italic font-semibold text-[#997343]">
+                  &ldquo;Cada caja física llega primero a quien más la necesita.&rdquo;
+                </p>
+                <p className="text-[11px] text-[#2C2523]">
+                  Por cada kit o carta digital interactiva, financiamos el envío de cajas físicas de autodescubrimiento a comunidades vulnerables y centros de apoyo en Venezuela.
+                </p>
+              </div>
+
+              <div className="text-center pt-2">
                 <a
                   href="https://gofundme.com"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-block px-6 py-3 bg-[#997343] text-white rounded-full font-playfair italic text-xs shadow-md hover:bg-[#856338] transition-all"
+                  className="inline-block py-3 px-6 rounded-2xl bg-[#997343] text-white font-serif italic font-semibold hover:bg-[#836237] shadow-md transition-all text-xs"
                 >
                   Apoyar en GoFundMe →
                 </a>
@@ -826,50 +1373,54 @@ export default function Home() {
           </div>
         )}
 
-        {/* POP-UP "¿CÓMO TE SIENTES AHORA?" */}
-        {showCheckIn && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-white rounded-3xl p-6 w-full max-w-xs text-center space-y-4 shadow-2xl border border-[#EAE5DF] relative">
-              <button
-                onClick={() => setShowCheckIn(false)}
-                className="absolute top-4 right-4 text-[#8A827A] hover:text-[#1C1817] text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full hover:bg-[#FAF8F5] transition-colors"
-                title="Cerrar"
-              >
-                ✕
-              </button>
-
-              <h3 className="text-base font-playfair italic text-[#1C1817] pr-4">
-                ¿Cómo te sientes ahora?
-              </h3>
-
-              <div className="flex flex-col gap-2 pt-1">
-                {[
-                  { label: '😔 Sin cambios', val: 'Sin cambios' },
-                  { label: '🙂 Un poco mejor', val: 'Un poco mejor' },
-                  { label: '❤️ Mucho mejor', val: 'Mucho mejor' },
-                ].map((item) => (
-                  <button
-                    key={item.val}
-                    onClick={() => handleSaveFeeling(item.label)}
-                    className="w-full py-2.5 bg-[#FAF8F5] hover:bg-[#F2EEE9] rounded-xl text-xs font-light text-[#332E2B] transition-colors border border-black/5 font-open-sans"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* PIE DE PÁGINA */}
-        <footer className="w-full text-center py-2 border-t border-[#EAE5DF] mt-auto font-open-sans">
-          <p className="text-[11px] text-[#8A827A] font-light">
-            ¿Quieres la experiencia táctil en tus manos?
-          </p>
-          <button className="text-xs font-playfair italic text-[#1C1817] underline underline-offset-2">
-            Consigue el mazo físico completo (130 diamantes)
+        {/* NAVEGACIÓN INFERIOR (TAB BAR) RENOMBRADA */}
+        <nav className="fixed bottom-3 left-1/2 transform -translate-x-1/2 w-full max-w-[340px] bg-white/90 backdrop-blur-md border border-[#E3DDD5] rounded-full shadow-lg p-1.5 flex items-center justify-around z-40">
+          <button
+            onClick={() => setActiveTab('draw')}
+            className={`flex-1 py-2 text-xs font-serif font-semibold rounded-full transition-all text-center ${
+              activeTab === 'draw'
+                ? 'bg-[#1C1817] text-white shadow-sm'
+                : 'text-[#8A827A] hover:text-[#1C1817]'
+            }`}
+          >
+            ☀️ Hoy
           </button>
-        </footer>
+
+          <span className="text-[#E3DDD5] text-xs">|</span>
+
+          <button
+            onClick={() => {
+              setCurrentCard(null);
+              setActiveTab('diary');
+            }}
+            className={`flex-1 py-2 text-xs font-serif font-semibold rounded-full transition-all text-center flex items-center justify-center gap-1 ${
+              activeTab === 'diary'
+                ? 'bg-[#1C1817] text-white shadow-sm'
+                : 'text-[#8A827A] hover:text-[#1C1817]'
+            } ${isDiarySparkling ? 'animate-pulse text-[#D9A24A]' : ''}`}
+          >
+            <span>💰 Tesoros</span>
+            {diary.length > 0 && (
+              <span className="text-[10px] opacity-75">({diary.length})</span>
+            )}
+          </button>
+
+          <span className="text-[#E3DDD5] text-xs">|</span>
+
+          <button
+            onClick={() => {
+              setCurrentCard(null);
+              setActiveTab('thermometer');
+            }}
+            className={`flex-1 py-2 text-xs font-serif font-semibold rounded-full transition-all text-center ${
+              activeTab === 'thermometer'
+                ? 'bg-[#1C1817] text-white shadow-sm'
+                : 'text-[#8A827A] hover:text-[#1C1817]'
+            }`}
+          >
+            🪞 Espejo
+          </button>
+        </nav>
       </main>
     </>
   );
