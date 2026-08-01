@@ -24,6 +24,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   'CAJA DE HERRAMIENTAS': '#B8B8B8',
 };
 
+// FRASES ACCIÓN PARA LA NARRATIVA DINÁMICA DE "AHORA!"
+const CATEGORY_ACTIONS: Record<string, string> = {
+  SONREÍR: 'sacar una sonrisa',
+  RESPIRAR: 'parar a respirar',
+  EXPLORAR: 'explorar y despertar la curiosidad',
+  EVOLUCIONAR: 'conectar con su fuerza interior',
+  COMPARTIR: 'sentir conexión y generosidad',
+  'CAJA DE HERRAMIENTAS': 'buscar herramientas de apoyo',
+};
+
 const CATEGORIES = [
   { key: 'SONREÍR', label: 'SONREÍR', sub: 'Humor y ligereza', color: '#FAD02C', tilt: '-rotate-1' },
   { key: 'RESPIRAR', label: 'RESPIRAR', sub: 'Calma y pausa', color: '#87CEEB', tilt: 'rotate-0' },
@@ -59,6 +69,15 @@ const getYesterdayKey = () => {
   return d.toISOString().split('T')[0];
 };
 
+const ZERO_STATS = {
+  SONREÍR: 0,
+  RESPIRAR: 0,
+  EXPLORAR: 0,
+  EVOLUCIONAR: 0,
+  COMPARTIR: 0,
+  'CAJA DE HERRAMIENTAS': 0,
+};
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'draw' | 'diary' | 'thermometer' | 'mission'>('draw');
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
@@ -91,15 +110,8 @@ export default function Home() {
   const [showCategoryChoiceModal, setShowCategoryChoiceModal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ESTADÍSTICAS DINÁMICAS (ESPEJO / TERMÓMETRO)
-  const [dailyStats, setDailyStats] = useState<Record<string, number>>({
-    SONREÍR: 45,
-    RESPIRAR: 30,
-    EXPLORAR: 15,
-    EVOLUCIONAR: 10,
-    COMPARTIR: 8,
-    'CAJA DE HERRAMIENTAS': 5,
-  });
+  // ESTADÍSTICAS DINÁMICAS (AHORA!) - INICIA EN ZERO PARA MEDIR 1 A 1
+  const [dailyStats, setDailyStats] = useState<Record<string, number>>(ZERO_STATS);
 
   useEffect(() => {
     const today = getTodayKey();
@@ -134,16 +146,8 @@ export default function Home() {
     if (savedStats) {
       try { setDailyStats(JSON.parse(savedStats)); } catch (e) {}
     } else {
-      const initialStats = {
-        SONREÍR: 45,
-        RESPIRAR: 30,
-        EXPLORAR: 15,
-        EVOLUCIONAR: 10,
-        COMPARTIR: 8,
-        'CAJA DE HERRAMIENTAS': 5,
-      };
-      setDailyStats(initialStats);
-      localStorage.setItem(statsKey, JSON.stringify(initialStats));
+      setDailyStats(ZERO_STATS);
+      localStorage.setItem(statsKey, JSON.stringify(ZERO_STATS));
     }
   }, []);
 
@@ -348,17 +352,28 @@ export default function Home() {
   };
 
   const getMostNeededStats = () => {
-    const sorted = Object.entries(dailyStats).sort((a, b) => b[1] - a[1]);
-    const topKey = sorted[0] ? sorted[0][0] : 'SONREÍR';
     const total = Object.values(dailyStats).reduce((a, b) => a + b, 0);
+    const sorted = Object.entries(dailyStats).sort((a, b) => b[1] - a[1]);
+
+    if (total === 0) {
+      return {
+        label: 'RESPIRAR',
+        percentage: 0,
+        color: '#87CEEB',
+        sorted,
+        total: 0,
+      };
+    }
+
+    const topKey = sorted[0] ? sorted[0][0] : 'RESPIRAR';
     const topCount = dailyStats[topKey] || 0;
-    const percentage = total > 0 ? Math.round((topCount / total) * 100) : 45;
+    const percentage = Math.round((topCount / total) * 100);
 
     const catObj = CATEGORIES.find((c) => c.key === topKey);
     return {
-      label: catObj ? catObj.label : 'SONREÍR',
+      label: catObj ? catObj.label : 'RESPIRAR',
       percentage,
-      color: catObj ? catObj.color : '#FAD02C',
+      color: catObj ? catObj.color : '#87CEEB',
       sorted,
       total,
     };
@@ -842,7 +857,7 @@ export default function Home() {
       {/* COMPONENTE PRINCIPAL */}
       <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-between pb-20 p-4 max-w-md mx-auto antialiased">
         
-        {/* NUEVO ENCABEZADO MEJORADO */}
+        {/* ENCABEZADO */}
         <header className="w-full flex justify-between items-center mb-3 pt-1 px-1 border-b border-[#E3DDD5]/40 pb-3">
           <button 
             onClick={handleGoHome}
@@ -1234,27 +1249,42 @@ export default function Home() {
           </div>
         )}
 
-        {/* PESTAÑA: ESPEJO (TERMÓMETRO COLECTIVO) */}
+        {/* PESTAÑA: AHORA! (SINCRONÍA EN TIEMPO REAL) */}
         {activeTab === 'thermometer' && (
           <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[75vh] animate-fadeIn">
-            <div className="flex justify-between items-center mb-1">
-              <div>
-                <h2 className="text-xl font-serif italic text-[#1C1817] font-semibold">
-                  🪞 Espejo Colectivo
-                </h2>
-                <p className="text-[11px] text-[#8A827A]">
-                Porque, aún en la distancia, respiramos juntos.
+            {/* Encabezado Principal 🌎AHORA! */}
+            <div className="flex justify-between items-start mb-1">
+              <div className="space-y-1.5 pr-2">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-serif italic text-[#1C1817] font-bold">
+                    AQUÍ Y AHORA...
+                  </h2>
+                  <span className="flex items-center gap-1 text-[9px] font-mono font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full border border-red-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                    EN VIVO
+                  </span>
+                </div>
+                <p className="text-xs font-serif italic text-[#1C1817] font-semibold leading-tight">
+                  En este preciso segundo, miles de personas están haciendo una pausa contigo.
+                </p>
+                {/* NARRATIVA AUTOMÁTICA CON LA CATEGORÍA MÁS REQUERIDA */}
+                <p className="text-[11px] text-[#8A827A] leading-relaxed italic">
+                  &ldquo;¿Pensaste que eras la única persona necesitando{' '}
+                  <strong className="font-bold text-[#1C1817] not-italic">
+                    {CATEGORY_ACTIONS[mostNeeded.label] || 'hacer una pausa'}
+                  </strong>{' '}
+                  ahora mismo? Mira a tu alrededor...&rdquo;
                 </p>
               </div>
               <button
                 onClick={handleGoHome}
-                className="text-xs text-[#8A827A] hover:text-[#1C1817] font-semibold bg-white border border-[#E3DDD5] px-3 py-1.5 rounded-xl shadow-2xs"
+                className="text-xs text-[#8A827A] hover:text-[#1C1817] font-semibold bg-white border border-[#E3DDD5] px-3 py-1.5 rounded-xl shadow-2xs shrink-0"
               >
                 ← Volver
               </button>
             </div>
 
-            {/* VISTA RESUMEN DEL ESPEJO */}
+            {/* Resumen Principal del Pulso en Vivo */}
             <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 shadow-sm space-y-4">
               <div className="flex items-center gap-4">
                 <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
@@ -1276,26 +1306,35 @@ export default function Home() {
                     />
                   </svg>
                   <span className="absolute text-xs font-bold text-[#1C1817]">
-                    {mostNeeded.percentage}%
+                    {mostNeeded.total > 0 ? `${mostNeeded.percentage}%` : '0%'}
                   </span>
                 </div>
                 <div className="text-left space-y-1">
                   <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-[#997343]">
-                    LO QUE MÁS RESUENA HOY
+                    ✦ LO QUE OCURRE EN ESTE SEGUNDO
                   </p>
-                  <p className="text-sm font-serif italic text-[#2C2523] leading-tight">
-                    La comunidad necesita principalmente{' '}
-                    <strong className="font-bold text-[#1C1817]">
-                      {mostNeeded.label}
-                    </strong>
+                  {mostNeeded.total > 0 ? (
+                    <p className="text-sm font-serif italic text-[#2C2523] leading-snug">
+                      En este instante, la necesidad que más resuena es{' '}
+                      <strong className="font-bold text-[#1C1817] uppercase">
+                        {mostNeeded.label}
+                      </strong>.
+                    </p>
+                  ) : (
+                    <p className="text-sm font-serif italic text-[#2C2523] leading-snug">
+                      Aún no hay tiradas registradas hoy. ¡Sé la primera persona en marcar el ritmo!
+                    </p>
+                  )}
+                  <p className="text-[11px] text-[#8A827A] leading-tight">
+                    No estás en solitario: hay personas en distintas esquinas del mundo soltando el aire al mismo tiempo que tú.
                   </p>
                 </div>
               </div>
 
-              {/* DESGLOSE POR CATEGORÍA */}
-              <div className="space-y-2 pt-2 border-t border-[#E3DDD5]/60">
+              {/* Desglose por Categoría */}
+              <div className="space-y-2.5 pt-3 border-t border-[#E3DDD5]/60">
                 <p className="text-[10px] font-mono text-[#8A827A] uppercase tracking-wider font-semibold">
-                  Desglose de necesidades
+                  ¿Qué estamos buscando en este preciso instante?
                 </p>
                 {mostNeeded.sorted.map(([catKey, count]) => {
                   const catObj = CATEGORIES.find((c) => c.key === catKey);
@@ -1304,7 +1343,7 @@ export default function Home() {
                     <div key={catKey} className="space-y-1">
                       <div className="flex justify-between text-xs font-medium">
                         <span className="text-[#1C1817] font-semibold">{catKey}</span>
-                        <span className="text-[#8A827A]">{pct}%</span>
+                        <span className="text-[#8A827A]">{pct}% ({count})</span>
                       </div>
                       <div className="w-full bg-[#EAE5DF] h-2 rounded-full overflow-hidden">
                         <div
@@ -1319,6 +1358,59 @@ export default function Home() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Tarjeta de Evidencia Científica / Co-regulación */}
+            <div className="bg-[#997343]/10 border border-[#997343]/20 rounded-3xl p-4.5 space-y-2 text-center">
+              <div className="flex items-center gap-1.5 text-[#997343]">
+                <span className="text-xs">🧠</span>
+                <span className="text-[13px] font-mono font-bold uppercase tracking-wider">
+                  La ciencia de sentirnos AHORA
+                </span>
+              </div>
+              <p className="text-xs text-[#2C2523] leading-relaxed textleft font-light"> 
+                Tu sistema nervioso está diseñado para autorregularse mediante la co-regulación. Cuando vengas aquí y ahora, descubrirás que tu cansancio o tu ansiedad son el reflejo de muchos otros. Tu cerebro percibirá en tiempo real que no estás solo/a en la necesidad de parar y la sensación de amenaza disminuirá. En este segundo, el cortisol baja y recuperas el tesoro más grande: tu propia calma.
+              </p>
+            </div>
+            
+            {/* CAJA ESTILO PERGAMINO */}
+            <div className="bg-[#F6EFDF] border border-[#D8C7A3] rounded-3xl p-5 space-y-3 text-left shadow-xs relative overflow-hidden">
+              <div className="text-center pb-1 border-b border-[#D8C7A3]/50">
+                <span className="text-xs font-serif italic font-bold text-[#7A5B2B] uppercase tracking-widest">
+                  ✦ A ti ✦
+                </span>
+              </div>
+              
+              <p className="text-xs font-serif italic text-[#382C1E] leading-relaxed">
+                Cada carta, cada respiración y cada pequeño ejercicio está inspirado en herramientas respaldadas por la psicología y la ciencia del bienestar, pero su verdadero propósito no es cambiar quién eres.
+              </p>
+              
+              <p className="text-xs font-serif italic font-bold text-[#382C1E] leading-relaxed">
+                Es ayudarte a recordar el valor que ya habita en ti.
+              </p>
+              
+              <p className="text-xs font-serif italic text-[#382C1E] leading-relaxed">
+                Y, cuando miras el reflejo de toda una comunidad, quizá descubras algo importante:
+              </p>
+              
+              <p className="text-xs font-serif italic font-bold text-[#7A5B2B] text-center pt-1 leading-relaxed">
+                &ldquo;No eres la única persona intentando volver a encontrarse.&rdquo;
+              </p>
+            </div>
+
+            {/* Teaser Próximas Funcionalidades (Demografía / Geografía) */}
+            <div className="bg-white/80 border border-[#E3DDD5] rounded-2xl p-3.5 flex items-center justify-between text-left shadow-2xs">
+              <div className="space-y-0.5 pr-2">
+                <p className="text-[10px] font-bold text-[#1C1817] uppercase tracking-wider flex items-center gap-1">
+                  <span>🌍</span> AHORA! en el planeta
+                </p>
+                <p className="text-[11px] text-[#8A827A] leading-tight">
+                  El respiro no tiene fronteras. Próximamente podrás ver desde qué países y ciudades se están sumando a esta misma pausa contigo.
+                </p>
+              </div>
+              <span className="text-[10px] font-mono bg-amber-100 text-[#997343] font-bold px-2.5 py-1 rounded-full shrink-0">
+                Pronto
+              </span>
             </div>
           </div>
         )}
@@ -1373,7 +1465,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* NAVEGACIÓN INFERIOR (TAB BAR) RENOMBRADA */}
+        {/* NAVEGACIÓN INFERIOR (TAB BAR) */}
         <nav className="fixed bottom-3 left-1/2 transform -translate-x-1/2 w-full max-w-[340px] bg-white/90 backdrop-blur-md border border-[#E3DDD5] rounded-full shadow-lg p-1.5 flex items-center justify-around z-40">
           <button
             onClick={() => setActiveTab('draw')}
@@ -1399,7 +1491,7 @@ export default function Home() {
                 : 'text-[#8A827A] hover:text-[#1C1817]'
             } ${isDiarySparkling ? 'animate-pulse text-[#D9A24A]' : ''}`}
           >
-            <span>💰 Tesoros</span>
+            <span>💎 Tesoros</span>
             {diary.length > 0 && (
               <span className="text-[10px] opacity-75">({diary.length})</span>
             )}
@@ -1412,13 +1504,14 @@ export default function Home() {
               setCurrentCard(null);
               setActiveTab('thermometer');
             }}
-            className={`flex-1 py-2 text-xs font-serif font-semibold rounded-full transition-all text-center ${
+            className={`flex-1 py-2 text-xs font-serif font-semibold rounded-full transition-all text-center flex items-center justify-center gap-1 ${
               activeTab === 'thermometer'
                 ? 'bg-[#1C1817] text-white shadow-sm'
                 : 'text-[#8A827A] hover:text-[#1C1817]'
             }`}
           >
-            🪞 Espejo
+            <span className="" />
+            <span>🌎AHORA!</span>
           </button>
         </nav>
       </main>
