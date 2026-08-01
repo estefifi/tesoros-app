@@ -25,3 +25,26 @@ body {
     )
     rgb(var(--background-start-rgb));
 }
+
+/* ===================================================
+   ✨ EFECTO DE DESTELLO EN "MI DIARIO" (FASE 2.2)
+   =================================================== */
+
+@keyframes sparklePulse {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0px 0px 0px rgba(234, 179, 8, 0));
+  }
+  50% {
+    transform: scale(1.35);
+    filter: drop-shadow(0px 0px 18px rgba(250, 204, 21, 0.95));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0px 0px 0px rgba(234, 179, 8, 0));
+  }
+}
+
+.sparkle-glow {
+  animation: sparklePulse 0.7s ease-in-out forwards;
+}
