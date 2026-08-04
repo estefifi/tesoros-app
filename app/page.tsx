@@ -54,11 +54,15 @@ interface DiaryEntry {
   date: string;
   card: Card;
   feeling?: string;
+  note?: string;
 }
 
 const cleanText = (text?: string): string => {
   if (!text) return '';
-  return text.trim().replace(/^["“]+|["”]+$/g, '');
+  return text
+    .replace(/""/g, '"')
+    .replace(/^["“]+|["”]+$/g, '')
+    .trim();
 };
 
 const getTodayKey = () => new Date().toISOString().split('T')[0];
@@ -83,9 +87,15 @@ export default function Home() {
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [userFeeling, setUserFeeling] = useState<string | null>(null);
+  const [userNote, setUserNote] = useState<string>('');
   const [diary, setDiary] = useState<DiaryEntry[]>([]);
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [isCardSaved, setIsCardSaved] = useState(false);
+
+  // COMENTARIOS / FEEDBACK
+  const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
+  const [feedbackText, setFeedbackText] = useState<string>('');
+  const [feedbackSent, setFeedbackSent] = useState<boolean>(false);
 
   // RACHA Y CALENDARIO
   const [streak, setStreak] = useState<number>(0);
@@ -110,7 +120,7 @@ export default function Home() {
   const [showCategoryChoiceModal, setShowCategoryChoiceModal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ESTADÍSTICAS DINÁMICAS (AHORA!) - INICIA EN ZERO PARA MEDIR 1 A 1
+  // ESTADÍSTICAS DINÁMICAS (AHORA!)
   const [dailyStats, setDailyStats] = useState<Record<string, number>>(ZERO_STATS);
 
   useEffect(() => {
@@ -183,6 +193,7 @@ export default function Home() {
     setActiveTab('draw');
     setIsFlipped(false);
     setIsCardSaved(false);
+    setUserNote('');
   };
 
   const isCardInDiary = (card: Card) => {
@@ -233,6 +244,7 @@ export default function Home() {
         setCurrentCard(selected);
         setIsFlipped(false);
         setUserFeeling(null);
+        setUserNote('');
         setShowCheckIn(false);
         setIsCardSaved(isCardInDiary(selected));
 
@@ -284,9 +296,11 @@ export default function Home() {
     setIsCardSaved(true);
     setActiveTab('draw');
     setUserFeeling(entry.feeling || null);
+    setUserNote(entry.note || '');
   };
 
-  const saveCardToDiary = (cardToSave: Card, feelingText?: string) => {
+  const saveCardToDiary = (cardToSave: Card, feelingText?: string, noteText?: string) => {
+    const currentNote = noteText !== undefined ? noteText : userNote;
     const existingIndex = diary.findIndex(
       (e) =>
         (e.card['Anverso (Gancho Científico)'] && e.card['Anverso (Gancho Científico)'] === cardToSave['Anverso (Gancho Científico)']) ||
@@ -300,6 +314,7 @@ export default function Home() {
       updated[existingIndex] = {
         ...updated[existingIndex],
         feeling: feelingText || updated[existingIndex].feeling,
+        note: currentNote !== undefined ? currentNote : updated[existingIndex].note,
       };
     } else {
       const newEntry: DiaryEntry = {
@@ -307,6 +322,7 @@ export default function Home() {
         date: new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short' }),
         card: cardToSave,
         feeling: feelingText,
+        note: currentNote,
       };
       updated = [newEntry, ...diary];
     }
@@ -322,8 +338,8 @@ export default function Home() {
   };
 
   const handleSaveToDiary = () => {
-    if (!currentCard || isCardSaved) return;
-    saveCardToDiary(currentCard, userFeeling || undefined);
+    if (!currentCard) return;
+    saveCardToDiary(currentCard, userFeeling || undefined, userNote);
   };
 
   const handleSaveFeeling = (feeling: string) => {
@@ -331,7 +347,7 @@ export default function Home() {
     setShowCheckIn(false);
 
     if (currentCard) {
-      saveCardToDiary(currentCard, feeling);
+      saveCardToDiary(currentCard, feeling, userNote);
     }
   };
 
@@ -537,6 +553,69 @@ export default function Home() {
         </div>
       )}
 
+      {/* MODAL COMENTARIOS / FEEDBACK */}
+      {showFeedbackModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
+            <div className="text-4xl">💌</div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
+                ✦ TU OPINIÓN ES UN TESORO ✦
+              </span>
+              <h3 className="text-lg font-serif font-bold text-[#1C1817] mt-1">
+                Déjanos tu comentario
+              </h3>
+            </div>
+
+            {feedbackSent ? (
+              <div className="space-y-3 py-2 w-full">
+                <p className="text-xs text-[#997343] font-serif italic font-semibold">
+                  ¡Muchas gracias! Tu comentario ha sido recibido con cariño. ❤️‍🩹
+                </p>
+                <button
+                  onClick={() => {
+                    setShowFeedbackModal(false);
+                    setFeedbackSent(false);
+                    setFeedbackText('');
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all"
+                >
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={feedbackText}
+                  onChange={(e) => setFeedbackText(e.target.value)}
+                  placeholder="Cuéntanos cómo te ayudó esta carta o comparte tus sugerencias..."
+                  rows={4}
+                  className="w-full text-xs p-3 rounded-2xl bg-white border border-[#E3DDD5] text-[#1C1817] placeholder-[#B5AEA7] focus:outline-none focus:border-[#997343] resize-none"
+                />
+                <div className="w-full space-y-2">
+                  <button
+                    onClick={() => {
+                      if (!feedbackText.trim()) return;
+                      setFeedbackSent(true);
+                    }}
+                    disabled={!feedbackText.trim()}
+                    className="w-full py-2.5 rounded-xl bg-[#997343] text-white text-xs font-semibold hover:bg-[#836237] disabled:opacity-50 transition-all shadow-sm"
+                  >
+                    Enviar Comentario
+                  </button>
+                  <button
+                    onClick={() => setShowFeedbackModal(false)}
+                    className="w-full py-1 text-xs text-[#8A827A] hover:text-[#1C1817]"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* MODAL RACHA Y CALENDARIO */}
       {showStreakModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
@@ -676,22 +755,29 @@ export default function Home() {
                 ✦ REFLEXIÓN DEL MOMENTO ✦
               </span>
               <h3 className="text-lg font-serif font-bold text-[#1C1817] mt-1">
-                ¿Cómo te hizo sentir este diamante?
+                ¿Qué tanto te ayudó este diamante?
               </h3>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 w-full">
-              {['😌 Me dio calma', '💡 Me hizo reflexionar', '😊 Me alegró el día', '🔥 Inspirador(a)', '🧘 Sentí paz', '✨ Agradecida'].map(
-                (option) => (
-                  <button
-                    key={option}
-                    onClick={() => handleSaveFeeling(option)}
-                    className="p-2.5 rounded-xl text-xs font-medium bg-white border border-[#E3DDD5] text-[#332E2B] hover:border-[#997343] hover:bg-amber-50/50 transition-all text-left shadow-sm"
-                  >
-                    {option}
-                  </button>
-                )
-              )}
+            <div className="flex flex-col gap-2.5 w-full">
+              {[
+                { label: 'Igual 🙃', desc: 'No me causó impacto por ahora' },
+                { label: 'Bien 😊', desc: 'Me dio una buena perspectiva' },
+                { label: 'Me encantó ❤️', desc: 'Llegó justo en el momento exacto' },
+              ].map((option) => (
+                <button
+                  key={option.label}
+                  onClick={() => handleSaveFeeling(option.label)}
+                  className="p-3.5 rounded-2xl bg-white border border-[#E3DDD5] text-[#332E2B] hover:border-[#997343] hover:bg-amber-50/50 transition-all text-left shadow-xs flex items-center justify-between group active:scale-98"
+                >
+                  <span className="text-xs font-bold text-[#1C1817] group-hover:text-[#997343] transition-colors">
+                    {option.label}
+                  </span>
+                  <span className="text-[10px] text-[#8A827A] font-light">
+                    {option.desc}
+                  </span>
+                </button>
+              ))}
             </div>
 
             <button
@@ -1092,9 +1178,9 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* BOTONES DE ACCIÓN */}
+                {/* BOTONES DE ACCIÓN AL GIRAR LA CARTA */}
                 {isFlipped ? (
-                  <div className="w-full space-y-2 my-2 animate-fadeIn">
+                  <div className="w-full space-y-2.5 my-2 animate-fadeIn">
                     <button
                       onClick={handleAnotherDiamondClick}
                       className="w-full py-2.5 rounded-xl bg-[#1C1817] text-white text-xs font-serif italic font-medium flex items-center justify-center gap-1.5 hover:bg-[#332E2B] shadow-sm transition-all"
@@ -1103,11 +1189,31 @@ export default function Home() {
                       <span>Sacar otro diamante</span>
                     </button>
 
-                    <div className="grid grid-cols-3 gap-2 w-full">
+                    {/* CUADRO DE TEXTO PARA PRACTICAR LA ACTIVIDAD */}
+                    <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3 shadow-xs space-y-1.5">
+                      <div className="flex justify-between items-center px-0.5">
+                        <label className="text-[10px] font-mono font-bold uppercase text-[#997343] flex items-center gap-1">
+                          <span>✍️</span> Práctica / Mi Reflexión:
+                        </label>
+                        {userNote.trim().length > 0 && (
+                          <span className="text-[9px] text-[#8A827A] font-mono">
+                            {userNote.length} caracteres
+                          </span>
+                        )}
+                      </div>
+                      <textarea
+                        value={userNote}
+                        onChange={(e) => setUserNote(e.target.value)}
+                        placeholder="Escribe aquí el resultado de tu ejercicio o tus pensamientos al hacer la actividad..."
+                        rows={2}
+                        className="w-full text-xs p-2 rounded-xl bg-[#FAF8F5] border border-[#E3DDD5] text-[#1C1817] placeholder-[#B5AEA7] focus:outline-none focus:border-[#997343] resize-none transition-all"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1.5 w-full">
                       <button
                         onClick={handleSaveToDiary}
-                        disabled={isCardSaved}
-                        className={`py-2 rounded-xl border text-[11px] font-medium flex items-center justify-center gap-1 transition-all ${
+                        className={`py-2 rounded-xl border text-[10px] font-medium flex items-center justify-center gap-1 transition-all ${
                           isCardSaved
                             ? 'bg-[#997343]/15 border-[#997343] text-[#997343] font-bold'
                             : 'bg-white border-[#E3DDD5] text-[#332E2B] hover:bg-[#FAF8F5]'
@@ -1119,15 +1225,23 @@ export default function Home() {
 
                       <button
                         onClick={() => setShowCheckIn(true)}
-                        className="py-2 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[11px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
+                        className="py-2 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
                       >
-                        <span>💬</span>
+                        <span>❤️‍🩹</span>
                         <span>¿Te ayudó?</span>
                       </button>
 
                       <button
+                        onClick={() => setShowFeedbackModal(true)}
+                        className="py-2 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
+                      >
+                        <span>💬</span>
+                        <span>Comentar</span>
+                      </button>
+
+                      <button
                         onClick={() => handleShare()}
-                        className="py-2 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[11px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
+                        className="py-2 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
                       >
                         <span>📤</span>
                         <span>Compartir</span>
@@ -1166,7 +1280,7 @@ export default function Home() {
                   Tus Tesoros Guardados 💰
                 </h2>
                 <p className="text-[11px] text-[#8A827A]">
-                  Tus joyas guardadas y cómo te hicieron sentir
+                  Tus joyas guardadas, notas de práctica y cómo te hicieron sentir
                 </p>
               </div>
               <button
@@ -1210,9 +1324,16 @@ export default function Home() {
                         <span>{entry.card['Icono'] || '💎'}</span>
                         <span>{catName}</span>
                       </span>
-                      <span className="text-[10px] font-extrabold text-[#1C1817]/80 bg-white/40 px-2 py-0.5 rounded-md">
-                        {entry.date ? entry.date.toUpperCase() : 'HOY'}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        {entry.note && (
+                          <span className="text-[10px] font-bold text-[#997343] bg-white/70 px-2 py-0.5 rounded-full border border-black/5">
+                            📝 Nota
+                          </span>
+                        )}
+                        <span className="text-[10px] font-extrabold text-[#1C1817]/80 bg-white/40 px-2 py-0.5 rounded-md">
+                          {entry.date ? entry.date.toUpperCase() : 'HOY'}
+                        </span>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5 py-0.5">
@@ -1229,13 +1350,25 @@ export default function Home() {
                           <strong className="font-semibold text-[#1C1817]">Acción:</strong> {instruccion}
                         </p>
                       )}
+                      
+                      {/* MOSTRAR LA NOTA DE LA PRÁCTICA EN EL DIARIO */}
+                      {entry.note && (
+                        <div className="bg-white/60 p-2.5 rounded-xl border border-black/5 text-xs text-[#1C1817] space-y-0.5">
+                          <span className="text-[10px] font-mono font-bold text-[#997343] uppercase flex items-center gap-1">
+                            ✍️ Tu Práctica:
+                          </span>
+                          <p className="italic font-serif leading-relaxed text-[#2C2523]">
+                            &ldquo;{entry.note}&rdquo;
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="pt-2 border-t border-black/10 flex items-center justify-between">
                       <div className="flex items-center gap-1.5 bg-white/60 px-2.5 py-1 rounded-full border border-black/10">
                         <span className="text-xs">❤️‍🩹</span>
                         <span className="text-[11px] font-bold text-[#1C1817]">
-                          {entry.feeling ? `Emoción: ${entry.feeling}` : 'Carta guardada'}
+                          {entry.feeling ? `Efecto: ${entry.feeling}` : 'Carta guardada'}
                         </span>
                       </div>
                       <span className="text-[10px] font-semibold text-[#1C1817]/70 group-hover:underline">
@@ -1252,7 +1385,6 @@ export default function Home() {
         {/* PESTAÑA: AHORA! (SINCRONÍA EN TIEMPO REAL) */}
         {activeTab === 'thermometer' && (
           <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[75vh] animate-fadeIn">
-            {/* Encabezado Principal 🌎AHORA! */}
             <div className="flex justify-between items-start mb-1">
               <div className="space-y-1.5 pr-2">
                 <div className="flex items-center gap-2">
@@ -1267,7 +1399,6 @@ export default function Home() {
                 <p className="text-xs font-serif italic text-[#1C1817] font-semibold leading-tight">
                   En este preciso segundo, miles de personas están haciendo una pausa contigo.
                 </p>
-                {/* NARRATIVA AUTOMÁTICA CON LA CATEGORÍA MÁS REQUERIDA */}
                 <p className="text-[11px] text-[#8A827A] leading-relaxed italic">
                   &ldquo;¿Pensaste que eras la única persona necesitando{' '}
                   <strong className="font-bold text-[#1C1817] not-italic">
@@ -1284,7 +1415,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Resumen Principal del Pulso en Vivo */}
             <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 shadow-sm space-y-4">
               <div className="flex items-center gap-4">
                 <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
@@ -1331,7 +1461,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Desglose por Categoría */}
               <div className="space-y-2.5 pt-3 border-t border-[#E3DDD5]/60">
                 <p className="text-[10px] font-mono text-[#8A827A] uppercase tracking-wider font-semibold">
                   ¿Qué estamos buscando en este preciso instante?
@@ -1360,7 +1489,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Tarjeta de Evidencia Científica / Co-regulación */}
             <div className="bg-[#997343]/10 border border-[#997343]/20 rounded-3xl p-4.5 space-y-2 text-center">
               <div className="flex items-center gap-1.5 text-[#997343]">
                 <span className="text-xs">🧠</span>
@@ -1368,12 +1496,11 @@ export default function Home() {
                   La ciencia de sentirnos AHORA
                 </span>
               </div>
-              <p className="text-xs text-[#2C2523] leading-relaxed textleft font-light"> 
+              <p className="text-xs text-[#2C2523] leading-relaxed text-left font-light"> 
                 Tu sistema nervioso está diseñado para autorregularse mediante la co-regulación. Cuando vengas aquí y ahora, descubrirás que tu cansancio o tu ansiedad son el reflejo de muchos otros. Tu cerebro percibirá en tiempo real que no estás solo/a en la necesidad de parar y la sensación de amenaza disminuirá. En este segundo, el cortisol baja y recuperas el tesoro más grande: tu propia calma.
               </p>
             </div>
             
-            {/* CAJA ESTILO PERGAMINO */}
             <div className="bg-[#F6EFDF] border border-[#D8C7A3] rounded-3xl p-5 space-y-3 text-left shadow-xs relative overflow-hidden">
               <div className="text-center pb-1 border-b border-[#D8C7A3]/50">
                 <span className="text-xs font-serif italic font-bold text-[#7A5B2B] uppercase tracking-widest">
@@ -1385,7 +1512,7 @@ export default function Home() {
                 Cada carta, cada respiración y cada pequeño ejercicio está inspirado en herramientas respaldadas por la psicología y la ciencia del bienestar, pero su verdadero propósito no es cambiar quién eres.
               </p>
               
-              <p className="text-xs font-serif italic font-bold text-[#382C1E] leading-relaxed">
+              <p className="text-xs font-serif italic text-[#382C1E] leading-relaxed">
                 Es ayudarte a recordar el valor que ya habita en ti.
               </p>
               
@@ -1398,7 +1525,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Teaser Próximas Funcionalidades (Demografía / Geografía) */}
             <div className="bg-white/80 border border-[#E3DDD5] rounded-2xl p-3.5 flex items-center justify-between text-left shadow-2xs">
               <div className="space-y-0.5 pr-2">
                 <p className="text-[10px] font-bold text-[#1C1817] uppercase tracking-wider flex items-center gap-1">
