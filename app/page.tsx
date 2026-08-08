@@ -1189,8 +1189,8 @@ export default function Home() {
                       <span>Sacar otro diamante</span>
                     </button>
 
-                    {/* CUADRO DE TEXTO PARA PRACTICAR LA ACTIVIDAD */}
-                    <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3 shadow-xs space-y-1.5">
+                    {/* CUADRO DE TEXTO Y ACCIÓN DIRECTA DE GUARDADO INTEGRADO */}
+                    <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3 shadow-xs space-y-2">
                       <div className="flex justify-between items-center px-0.5">
                         <label className="text-[10px] font-mono font-bold uppercase text-[#997343] flex items-center gap-1">
                           <span>✍️</span> Práctica / Mi Reflexión:
@@ -1201,13 +1201,31 @@ export default function Home() {
                           </span>
                         )}
                       </div>
-                      <textarea
-                        value={userNote}
-                        onChange={(e) => setUserNote(e.target.value)}
-                        placeholder="Escribe aquí el resultado de tu ejercicio o tus pensamientos al hacer la actividad..."
-                        rows={2}
-                        className="w-full text-xs p-2 rounded-xl bg-[#FAF8F5] border border-[#E3DDD5] text-[#1C1817] placeholder-[#B5AEA7] focus:outline-none focus:border-[#997343] resize-none transition-all"
-                      />
+
+                      <div className="relative">
+                        <textarea
+                          value={userNote}
+                          onChange={(e) => setUserNote(e.target.value)}
+                          placeholder="Escribe aquí el resultado de tu ejercicio o tus pensamientos al hacer la actividad..."
+                          rows={3}
+                          className="w-full text-xs p-2.5 pb-9 rounded-xl bg-[#FAF8F5] border border-[#E3DDD5] text-[#1C1817] placeholder-[#B5AEA7] focus:outline-none focus:border-[#997343] resize-none transition-all"
+                        />
+
+                        {/* ACCIÓN DIRECTA DENTRO DEL ÁREA DE TEXTO */}
+                        <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                          <button
+                            onClick={handleSaveToDiary}
+                            className={`px-3 py-1 rounded-lg text-[10px] font-semibold transition-all shadow-xs flex items-center gap-1 ${
+                              isCardSaved
+                                ? 'bg-[#997343] text-white hover:bg-[#836237]'
+                                : 'bg-[#1C1817] text-white hover:bg-[#332E2B]'
+                            }`}
+                          >
+                            <span>💎</span>
+                            <span>{isCardSaved ? 'Actualizar en mis Tesoros' : 'Guardar Reflexión'}</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-4 gap-1.5 w-full">
