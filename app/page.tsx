@@ -82,9 +82,7 @@ const ZERO_STATS = {
   'CAJA DE HERRAMIENTAS': 0,
 };
 
-// ==========================================
 // TELEMETRÍA: ANALYTICS & SUPABASE HELPERS
-// ==========================================
 const trackAnalyticsEvent = (eventName: string, params: Record<string, any>) => {
   if (typeof window !== 'undefined' && (window as any).gtag) {
     (window as any).gtag('event', eventName, params);
@@ -93,7 +91,6 @@ const trackAnalyticsEvent = (eventName: string, params: Record<string, any>) => 
 };
 
 const saveToSupabase = async (tableName: string, payload: Record<string, any>) => {
-  // Conecta aquí tu cliente de Supabase (ej. supabase.from(tableName).insert([payload]))
   console.log(`[Supabase Insert -> ${tableName}]:`, payload);
 };
 
@@ -107,27 +104,27 @@ export default function Home() {
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [isCardSaved, setIsCardSaved] = useState(false);
 
-  // NUEVO FLUJO 1: MEDIDOR DE ENERGÍA DE ENTRADA (1-5)
+  // FLUJO MEDIDOR DE ENERGÍA
   const [showEnergyModal, setShowEnergyModal] = useState<boolean>(false);
   const [initialEnergy, setInitialEnergy] = useState<number | null>(null);
   const [pendingCategory, setPendingCategory] = useState<string | null>(null);
 
-  // NUEVO FLUJO 2: FEEDBACK INDIVIDUAL DE CARTA
+  // FLUJO FEEDBACK INDIVIDUAL DE CARTA
   const [cardUtilityRating, setCardUtilityRating] = useState<'mucho' | 'un_poco' | 'no_mucho' | null>(null);
   const [cardUtilityReason, setCardUtilityReason] = useState<string>('');
   const [showReasonInput, setShowReasonInput] = useState<boolean>(false);
 
-  // NUEVO FLUJO 3: ENCUESTA FINAL DE SESIÓN / ROADMAP
+  // FLUJO ENCUESTA FINAL / ROADMAP
   const [wouldReturn, setWouldReturn] = useState<boolean | null>(null);
   const [roadmapWish, setRoadmapWish] = useState<string>('');
   const [roadmapSubmitted, setRoadmapSubmitted] = useState<boolean>(false);
 
-  // COMENTARIOS / FEEDBACK
+  // FEEDBACK
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
   const [feedbackSent, setFeedbackSent] = useState<boolean>(false);
 
-  // AUTO MODAL TRAS 7 SEGUNDOS O AL HACER CLIC FUERA
+  // AUTO MODAL
   const [showAutoModal, setShowAutoModal] = useState<boolean>(false);
   const [hasShownAutoModal, setHasShownAutoModal] = useState<boolean>(false);
   const practicaRef = useRef<HTMLDivElement>(null);
@@ -196,7 +193,6 @@ export default function Home() {
       localStorage.setItem(statsKey, JSON.stringify(ZERO_STATS));
     }
 
-    // Verificar si ya registró energía hoy
     const energyKey = `tesoros_energy_${today}`;
     const savedEnergy = localStorage.getItem(energyKey);
     if (savedEnergy) {
@@ -208,7 +204,6 @@ export default function Home() {
     if (!isFlipped) {
       setHasShownAutoModal(false);
       setShowAutoModal(false);
-      // Reset feedback form al cerrar/girar
       setCardUtilityRating(null);
       setCardUtilityReason('');
       setShowReasonInput(false);
@@ -221,7 +216,7 @@ export default function Home() {
       timer = setTimeout(() => {
         setShowAutoModal(true);
         setHasShownAutoModal(true);
-      }, 7000);
+      }, 9000);
     }
 
     return () => {
@@ -319,7 +314,6 @@ export default function Home() {
     }, 600);
   };
 
-  // MANEJO DE SELECCIÓN DE CATEGORÍA CON FILTRO DE ENERGÍA INICIAL
   const handleSelectCategory = (categoryKey: string) => {
     const today = getTodayKey();
     const flipsKey = `tesoros_flips_${today}`;
@@ -330,7 +324,6 @@ export default function Home() {
       return;
     }
 
-    // SI ES LA PRIMERA CARTA DEL DÍA Y AÚN NO HA REGISTRADO ENERGÍA
     if (initialEnergy === null) {
       setPendingCategory(categoryKey);
       setShowEnergyModal(true);
@@ -340,7 +333,6 @@ export default function Home() {
     executeCardDraw(categoryKey);
   };
 
-  // EJECUCIÓN REAL DE LA TIRADA
   const executeCardDraw = (categoryKey: string) => {
     const today = getTodayKey();
     const flipsKey = `tesoros_flips_${today}`;
@@ -398,14 +390,12 @@ export default function Home() {
     }, 1200);
   };
 
-  // SELECCIÓN DE ENERGÍA INICIAL (1-5)
   const handleSelectEnergy = (level: number) => {
     const today = getTodayKey();
     setInitialEnergy(level);
     localStorage.setItem(`tesoros_energy_${today}`, level.toString());
     setShowEnergyModal(false);
 
-    // Métrica Analytics y Supabase
     trackAnalyticsEvent('initial_energy_submitted', { energy_level: level });
     saveToSupabase('user_energy_checkins', {
       date: today,
@@ -419,7 +409,6 @@ export default function Home() {
     }
   };
 
-  // GUARDAR FEEDBACK DE LA CARTA (¿TE SIRVIÓ ESTE TESORO?)
   const handleCardUtilitySelect = (rating: 'mucho' | 'un_poco' | 'no_mucho') => {
     setCardUtilityRating(rating);
     setShowReasonInput(true);
@@ -455,7 +444,6 @@ export default function Home() {
     setShowReasonInput(false);
   };
 
-  // ENVIAR ROADMAP / ENCUESTA DE FIN DE SESIÓN
   const handleEndSessionSurveySubmit = () => {
     setRoadmapSubmitted(true);
 
@@ -617,6 +605,67 @@ export default function Home() {
     setShowTodayModal(true);
   };
 
+  // CÁLCULO DE DÍAS ACTIVOS EN EL MES ACTUAL PARA EL PULIDO DE DIAMANTE
+  const getMonthlyActivityCount = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
+    const prefix = `${year}-${monthStr}`;
+
+    return Object.keys(activityMap).filter((dateKey) => dateKey.startsWith(prefix)).length;
+  };
+
+  const getDiamondPolishStage = (activeDays: number, totalDaysInMonth: number) => {
+    const percentage = Math.min(100, Math.round((activeDays / totalDaysInMonth) * 100));
+
+    if (activeDays === 0) {
+      return {
+        level: 'Faceta Inicial',
+        desc: 'Tu diamante te espera. Cada ingreso pulirá un nuevo destello.',
+        scale: 'scale-90 opacity-70',
+        glowStyle: 'drop-shadow(0 0 4px rgba(184,184,184,0.4))',
+        badgeColor: 'bg-gray-100 text-[#8A827A]',
+        percentage,
+      };
+    } else if (percentage < 25) {
+      return {
+        level: 'Primeros Destellos',
+        desc: '¡Tu gema empieza a tomar forma! Estás regalándote tiempo de valor.',
+        scale: 'scale-95 opacity-85',
+        glowStyle: 'drop-shadow(0 0 12px rgba(250,208,44,0.6))',
+        badgeColor: 'bg-amber-100 text-[#997343]',
+        percentage,
+      };
+    } else if (percentage < 50) {
+      return {
+        level: 'Diamante Brillante',
+        desc: '¡Qué hermoso resplandor! Tu constancia sin presiones está dando luz.',
+        scale: 'scale-100 opacity-95',
+        glowStyle: 'drop-shadow(0 0 20px rgba(250,208,44,0.85))',
+        badgeColor: 'bg-yellow-100 text-yellow-800',
+        percentage,
+      };
+    } else if (percentage < 75) {
+      return {
+        level: 'Diamante Radiante',
+        desc: 'Tu tesoro interior brilla con fuerza este mes.',
+        scale: 'scale-105 opacity-100',
+        glowStyle: 'drop-shadow(0 0 28px rgba(255,180,0,0.95))',
+        badgeColor: 'bg-amber-200 text-[#1C1817]',
+        percentage,
+      };
+    } else {
+      return {
+        level: 'Joya Maestra',
+        desc: '¡Un diamante deslumbrante! Has llenado tu mes de autopremio y calma.',
+        scale: 'scale-110 opacity-100',
+        glowStyle: 'drop-shadow(0 0 36px rgba(255,215,0,1))',
+        badgeColor: 'bg-amber-400 text-[#1C1817]',
+        percentage,
+      };
+    }
+  };
+
   const renderCalendarGrid = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -627,6 +676,9 @@ export default function Home() {
     const startOffset = (firstDayIndex + 6) % 7;
 
     const monthName = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+    const activeDaysThisMonth = getMonthlyActivityCount();
+    const stage = getDiamondPolishStage(activeDaysThisMonth, daysInMonth);
+
     const gridCells = [];
 
     for (let i = 0; i < startOffset; i++) {
@@ -645,9 +697,9 @@ export default function Home() {
         <div key={dayKey} className="flex items-center justify-center h-8 w-8 relative">
           {hasActivity ? (
             <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-sm cursor-pointer border border-black/10 hover:scale-110 transition-transform"
+              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-sm cursor-pointer border border-black/10 hover:scale-110 transition-transform animate-pulse-glow"
               style={{ backgroundColor: categoryColor }}
-              title={`Sensación del día: ${categoryFound}`}
+              title={`Tesoro descubierto: ${categoryFound}`}
               onClick={() => {
                 setShowStreakModal(false);
                 setCurrentCard(null);
@@ -666,20 +718,69 @@ export default function Home() {
     }
 
     return (
-      <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3.5 shadow-sm space-y-2.5">
-        <div className="flex justify-between items-center px-1">
-          <h4 className="text-xs font-serif font-bold text-[#1C1817] capitalize">
-            📅 {monthName}
-          </h4>
-          <span className="text-[9px] font-mono text-[#997343] font-semibold uppercase">
-            Mapa de Tesoros
-          </span>
+      <div className="w-full space-y-3">
+        {/* EXPERIENCIA CENTRAL DE PULIDO DE DIAMANTE */}
+        <div className="w-full bg-gradient-to-b from-amber-50/80 via-white to-amber-50/30 border border-[#E3DDD5] rounded-3xl p-5 shadow-sm flex flex-col items-center text-center space-y-3 relative overflow-hidden">
+          <div className="flex items-center gap-1.5 bg-white/80 border border-[#E3DDD5] px-3 py-1 rounded-full shadow-2xs">
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#997343]">
+              ✦ PULIDO DEL MES DE {monthName.toUpperCase()} ✦
+            </span>
+          </div>
+
+          {/* DIAMANTE CENTRAL ANIMADO */}
+          <div className="py-2 flex flex-col items-center justify-center relative">
+            <div
+              className={`text-6xl transition-all duration-700 transform cursor-pointer hover:scale-125 ${stage.scale}`}
+              style={{ filter: stage.glowStyle }}
+            >
+              💎
+            </div>
+            <span
+              className={`mt-2 text-[10px] font-mono font-bold px-3 py-0.5 rounded-full uppercase border border-black/5 ${stage.badgeColor}`}
+            >
+              {stage.level}
+            </span>
+          </div>
+
+          <p className="text-xs font-serif italic text-[#1C1817] max-w-[260px] leading-relaxed">
+            {stage.desc}
+          </p>
+
+          {/* BARRA DE PROGRESO DE BRILLO */}
+          <div className="w-full space-y-1.5 pt-1">
+            <div className="flex justify-between items-center text-[10px] font-mono font-bold text-[#8A827A]">
+              <span>Faceta {activeDaysThisMonth} de {daysInMonth}</span>
+              <span className="text-[#997343]">{stage.percentage}% Pulido</span>
+            </div>
+            <div className="w-full bg-[#EAE5DF] h-2.5 rounded-full overflow-hidden p-0.5 border border-black/5">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#FAD02C] via-[#E1BEE7] to-[#FF9A8B] transition-all duration-700"
+                style={{ width: `${Math.max(5, stage.percentage)}%` }}
+              />
+            </div>
+          </div>
+
+          <p className="text-[9px] text-[#8A827A] italic leading-tight">
+            Cada día que entras no es una obligación, es tu espacio para premiarte y encontrar paz.
+          </p>
         </div>
-        <div className="grid grid-cols-7 text-center text-[10px] font-bold text-[#8A827A] font-mono">
-          <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
-        </div>
-        <div className="grid grid-cols-7 gap-1 place-items-center">
-          {gridCells}
+
+        {/* MAPA DE CALENDARIO */}
+        <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3.5 shadow-sm space-y-2.5">
+          <div className="flex justify-between items-center px-1">
+            <h4 className="text-xs font-serif font-bold text-[#1C1817] capitalize">
+              📅 {monthName}
+            </h4>
+            <span className="text-[9px] font-mono text-[#997343] font-semibold uppercase">
+              Facetas Iluminadas
+            </span>
+          </div>
+          <div className="grid grid-cols-7 text-center text-[10px] font-bold text-[#8A827A] font-mono">
+            <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+          </div>
+          <div className="grid grid-cols-7 gap-1 place-items-center">
+            {gridCells}
+          </div>
         </div>
       </div>
     );
@@ -694,10 +795,10 @@ export default function Home() {
     <>
       <style jsx global>{`
         @keyframes pulseGlow {
-          0%, 100% { transform: scale(1); opacity: 0.7; }
-          50% { transform: scale(1.22); opacity: 1; filter: drop-shadow(0 0 18px rgba(200, 138, 52, 0.75)); }
+          0%, 100% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 16px rgba(250, 208, 44, 0.85)); }
         }
-        .animate-pulse-glow { animation: pulseGlow 1.4s infinite ease-in-out; }
+        .animate-pulse-glow { animation: pulseGlow 1.6s infinite ease-in-out; }
 
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(4px); }
@@ -758,7 +859,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL 1: ¿CÓMO LLEGAS HOY? (MEDIDOR DE ENERGÍA DE ENTRADA 1-5) */}
+      {/* MODAL 1: ¿CÓMO LLEGAS HOY? */}
       {showEnergyModal && (
         <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-5">
@@ -775,7 +876,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* BATERÍA VISUAL 1 - 5 */}
             <div className="grid grid-cols-5 gap-2 w-full pt-1">
               {[
                 { lvl: 1, label: 'Agotado', icon: '🪫' },
@@ -809,7 +909,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL AUTO (SOLO SALTA UNA VEZ PER FLIP) */}
+      {/* MODAL AUTO */}
       {showAutoModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
@@ -864,7 +964,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL COMENTARIOS / FEEDBACK GENERAL */}
+      {/* MODAL COMENTARIOS / FEEDBACK */}
       {showFeedbackModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
@@ -929,35 +1029,30 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL RACHA Y CALENDARIO */}
+      {/* MODAL RACHA Y CALENDARIO: PULIDO DE DIAMANTE */}
       {showStreakModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-5 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-center bg-amber-100 rounded-full w-16 h-16 border border-amber-200 shadow-inner">
-              <span className="text-4xl animate-bounce">🔥</span>
-            </div>
-            <div>
-              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
-                ✦ TU CONSTANCIA ✦
+            <div className="flex items-center justify-center bg-amber-100 rounded-full px-4 py-1.5 border border-amber-200 shadow-inner gap-1.5">
+              <span className="text-xl">🔥</span>
+              <span className="text-xs font-mono font-bold text-[#997343]">
+                Racha: {streak} {streak === 1 ? 'día' : 'días'}
               </span>
-              <h3 className="text-2xl font-serif font-bold text-[#1C1817] mt-0.5">
-                Racha de {streak} {streak === 1 ? 'día' : 'días'}
-              </h3>
             </div>
 
             {renderCalendarGrid()}
 
             <button
               onClick={() => setShowStreakModal(false)}
-              className="w-full py-2.5 rounded-xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all shadow-sm"
+              className="w-full py-3 rounded-xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all shadow-sm"
             >
-              ¡Continuar!
+              ¡Seguir Puliendo mi Tesoro!
             </button>
           </div>
         </div>
       )}
 
-      {/* MODAL: LÍMITE DIARIO + ENCUESTA FINAL DE SESIÓN / ROADMAP */}
+      {/* MODAL: LÍMITE DIARIO + ENCUESTA */}
       {showLimitModal && (
         <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4 max-h-[90vh] overflow-y-auto">
@@ -974,7 +1069,6 @@ export default function Home() {
               Has revelado tus <strong>3 diamantes de hoy</strong> (3/3). Tómate el día para reflexionar e integrar estos mensajes. Mañana podrás descubrir nuevos tesoros.
             </p>
 
-            {/* SECCIÓN "¿CÓMO TE VAS?" Y SURVEY ROADMAP */}
             <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-4 text-left space-y-3.5 my-1 shadow-xs">
               <div className="text-center pb-1 border-b border-[#E3DDD5]/60">
                 <span className="text-[10px] font-mono font-bold uppercase text-[#997343] tracking-wider">
@@ -982,7 +1076,6 @@ export default function Home() {
                 </span>
               </div>
 
-              {/* ¿VOLVERÍAS MAÑANA? */}
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-[#1C1817]">
                   ¿Volverías mañana?
@@ -1011,7 +1104,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* PREGUNTA ROADMAP */}
               <div className="space-y-1.5 pt-1">
                 <p className="text-xs font-semibold text-[#1C1817]">
                   ¿Qué necesitas encontrar aquí que todavía no existe? 🔥🔥🔥
@@ -1040,7 +1132,6 @@ export default function Home() {
               )}
             </div>
 
-            {/* BOTONES DE ACCIÓN LÍMITE */}
             <div className="w-full space-y-2 pt-1">
               {todayCards.length > 0 && (
                 <button
@@ -1076,7 +1167,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL: ELECCIÓN DE CATEGORÍA (SIGUIENTE TIRADA) */}
+      {/* MODAL: ELECCIÓN DE CATEGORÍA */}
       {showCategoryChoiceModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
@@ -1190,7 +1281,6 @@ export default function Home() {
               </h3>
             </div>
 
-            {/* CARTA CARRUSEL */}
             {todayCards[carouselIndex] && (
               <div
                 className="w-full aspect-[63/88] max-h-[360px] cursor-pointer my-1 group"
@@ -1204,7 +1294,6 @@ export default function Home() {
                     transform: modalIsFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
                   }}
                 >
-                  {/* ANVERSO CARRUSEL */}
                   <div
                     className="absolute inset-0 rounded-2xl p-4 flex flex-col justify-between items-center text-center overflow-hidden border-2 border-white/20"
                     style={{
@@ -1229,7 +1318,6 @@ export default function Home() {
                     <span className="text-[10px] text-[#1C1817]/70">🔄 Toca para girar</span>
                   </div>
 
-                  {/* REVERSO CARRUSEL */}
                   <div
                     className="absolute inset-0 rounded-2xl p-4 flex flex-col justify-between items-center text-center overflow-hidden bg-white border-2 border-[#FAF8F5]"
                     style={{
@@ -1257,7 +1345,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* CONTROLES CARRUSEL */}
             <div className="flex justify-between items-center w-full px-2">
               <button
                 disabled={carouselIndex === 0}
@@ -1351,9 +1438,10 @@ export default function Home() {
             <button
               onClick={() => setShowStreakModal(true)}
               className="px-2.5 py-1 rounded-full bg-white border border-[#E3DDD5] text-[#1C1817] text-xs font-bold flex items-center gap-1 hover:border-[#997343] transition-all shadow-2xs"
+              title="Ver tu diamante del mes"
             >
-              <span className="text-amber-500">🔥</span>
-              <span>{streak}</span>
+              <span className="text-amber-500 animate-pulse">💎</span>
+              <span>{streak}d</span>
             </button>
 
             <button
@@ -1370,7 +1458,7 @@ export default function Home() {
           </div>
         </header>
 
-        {/* PESTAÑA PRINCIPAL: HOY (TIRADA) */}
+        {/* PESTAÑA PRINCIPAL: HOY */}
         {activeTab === 'draw' && (
           <>
             {!currentCard ? (
@@ -1387,7 +1475,6 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* BOTONES DE CATEGORÍAS */}
                 <div className="grid grid-cols-3 gap-2.5 w-full items-center py-2">
                   {CATEGORIES.slice(0, 3).map((cat) => (
                     <button
@@ -1469,7 +1556,6 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* CARTA 3D FLIP CON REF */}
                 <div
                   ref={cardRef}
                   className="w-full aspect-[63/88] max-h-[460px] cursor-pointer my-1 group"
@@ -1559,7 +1645,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* BOTONES DE ACCIÓN AL GIRAR LA CARTA */}
                 {isFlipped ? (
                   <div className="w-full space-y-2.5 my-2 animate-fadeIn">
                     <button
@@ -1570,7 +1655,6 @@ export default function Home() {
                       <span>Sacar otro diamante</span>
                     </button>
 
-                    {/* NUEVA SECCIÓN DE FEEDBACK RÁPIDO: ¿TE SIRVIÓ ESTE TESORO? */}
                     <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3 shadow-xs space-y-2">
                       <span className="text-[10px] font-mono font-bold uppercase text-[#997343] block">
                         ✦ ¿TE SIRVIÓ ESTE TESORO?
@@ -1608,7 +1692,6 @@ export default function Home() {
                         </button>
                       </div>
 
-                      {/* CAMPO OPCIONAL ¿QUIERES CONTARNOS POR QUÉ? */}
                       {showReasonInput && (
                         <div className="pt-1 space-y-1.5 animate-fadeIn">
                           <label className="text-[9px] font-mono text-[#8A827A] uppercase block">
@@ -1633,7 +1716,6 @@ export default function Home() {
                       )}
                     </div>
 
-                    {/* CUADRO DE TEXTO Y PRÁCTICA */}
                     <div
                       ref={practicaRef}
                       className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3 shadow-xs space-y-2 scroll-mt-4"
@@ -1674,7 +1756,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* BOTONES INFERIORES */}
                     <div className="grid grid-cols-3 gap-1.5 w-full">
                       <button
                         onClick={handleSaveToDiary}
@@ -1709,7 +1790,6 @@ export default function Home() {
                   <div className="h-16 my-2" />
                 )}
 
-                {/* FOOTER */}
                 <div className="w-full flex flex-col items-center gap-1 text-center px-1">
                   <p className="text-[10px] text-[#8A827A] font-light leading-relaxed max-w-[320px] mx-auto text-center">
                     Tesoros del Autodescubrimiento nació después de los terremotos en Venezuela como parte de las donaciones que están pasando desapercibidas, tales como el apoyo emocional ❤️‍🩹. Cada caja física llega primero a quien más la necesita.
