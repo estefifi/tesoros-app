@@ -1,7 +1,7 @@
 /* eslint-disable */
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import rawCards from './cards.json';
 
 interface Card {
@@ -82,6 +82,21 @@ const ZERO_STATS = {
   'CAJA DE HERRAMIENTAS': 0,
 };
 
+// ==========================================
+// TELEMETRÍA: ANALYTICS & SUPABASE HELPERS
+// ==========================================
+const trackAnalyticsEvent = (eventName: string, params: Record<string, any>) => {
+  if (typeof window !== 'undefined' && (window as any).gtag) {
+    (window as any).gtag('event', eventName, params);
+  }
+  console.log(`[Analytics Event]: ${eventName}`, params);
+};
+
+const saveToSupabase = async (tableName: string, payload: Record<string, any>) => {
+  // Conecta aquí tu cliente de Supabase (ej. supabase.from(tableName).insert([payload]))
+  console.log(`[Supabase Insert -> ${tableName}]:`, payload);
+};
+
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'draw' | 'diary' | 'thermometer' | 'mission'>('draw');
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
@@ -92,10 +107,31 @@ export default function Home() {
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [isCardSaved, setIsCardSaved] = useState(false);
 
+  // NUEVO FLUJO 1: MEDIDOR DE ENERGÍA DE ENTRADA (1-5)
+  const [showEnergyModal, setShowEnergyModal] = useState<boolean>(false);
+  const [initialEnergy, setInitialEnergy] = useState<number | null>(null);
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null);
+
+  // NUEVO FLUJO 2: FEEDBACK INDIVIDUAL DE CARTA
+  const [cardUtilityRating, setCardUtilityRating] = useState<'mucho' | 'un_poco' | 'no_mucho' | null>(null);
+  const [cardUtilityReason, setCardUtilityReason] = useState<string>('');
+  const [showReasonInput, setShowReasonInput] = useState<boolean>(false);
+
+  // NUEVO FLUJO 3: ENCUESTA FINAL DE SESIÓN / ROADMAP
+  const [wouldReturn, setWouldReturn] = useState<boolean | null>(null);
+  const [roadmapWish, setRoadmapWish] = useState<string>('');
+  const [roadmapSubmitted, setRoadmapSubmitted] = useState<boolean>(false);
+
   // COMENTARIOS / FEEDBACK
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
   const [feedbackSent, setFeedbackSent] = useState<boolean>(false);
+
+  // AUTO MODAL TRAS 7 SEGUNDOS O AL HACER CLIC FUERA
+  const [showAutoModal, setShowAutoModal] = useState<boolean>(false);
+  const [hasShownAutoModal, setHasShownAutoModal] = useState<boolean>(false);
+  const practicaRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // RACHA Y CALENDARIO
   const [streak, setStreak] = useState<number>(0);
@@ -159,7 +195,70 @@ export default function Home() {
       setDailyStats(ZERO_STATS);
       localStorage.setItem(statsKey, JSON.stringify(ZERO_STATS));
     }
+
+    // Verificar si ya registró energía hoy
+    const energyKey = `tesoros_energy_${today}`;
+    const savedEnergy = localStorage.getItem(energyKey);
+    if (savedEnergy) {
+      setInitialEnergy(parseInt(savedEnergy, 10));
+    }
   }, []);
+
+  useEffect(() => {
+    if (!isFlipped) {
+      setHasShownAutoModal(false);
+      setShowAutoModal(false);
+      // Reset feedback form al cerrar/girar
+      setCardUtilityRating(null);
+      setCardUtilityReason('');
+      setShowReasonInput(false);
+    }
+  }, [isFlipped]);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isFlipped && currentCard && !hasShownAutoModal) {
+      timer = setTimeout(() => {
+        setShowAutoModal(true);
+        setHasShownAutoModal(true);
+      }, 7000);
+    }
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [isFlipped, currentCard, hasShownAutoModal]);
+
+  useEffect(() => {
+    if (!isFlipped || showAutoModal || hasShownAutoModal) return;
+
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
+        setShowAutoModal(true);
+        setHasShownAutoModal(true);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleOutsideClick);
+    }, 200);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [isFlipped, showAutoModal, hasShownAutoModal]);
+
+  const getPrimaryButtonType = (card: Card | null): 'PRACTICA' | 'CONTINUAR' => {
+    if (!card) return 'CONTINUAR';
+    const model = (card['Modelo (Intención)'] || '').toUpperCase();
+    const cat = (card['Categoría'] || '').toUpperCase();
+    
+    if (model.includes('PRACTICA') || model.includes('PRÁCTICA') || model.includes('EJERCICIO') || cat.includes('EXPLORAR')) {
+      return 'PRACTICA';
+    }
+    return 'CONTINUAR';
+  };
 
   const registerDailyActivity = (categoryKey: string) => {
     const today = getTodayKey();
@@ -194,6 +293,8 @@ export default function Home() {
     setIsFlipped(false);
     setIsCardSaved(false);
     setUserNote('');
+    setShowAutoModal(false);
+    setHasShownAutoModal(false);
   };
 
   const isCardInDiary = (card: Card) => {
@@ -218,6 +319,7 @@ export default function Home() {
     }, 600);
   };
 
+  // MANEJO DE SELECCIÓN DE CATEGORÍA CON FILTRO DE ENERGÍA INICIAL
   const handleSelectCategory = (categoryKey: string) => {
     const today = getTodayKey();
     const flipsKey = `tesoros_flips_${today}`;
@@ -227,6 +329,22 @@ export default function Home() {
       setShowLimitModal(true);
       return;
     }
+
+    // SI ES LA PRIMERA CARTA DEL DÍA Y AÚN NO HA REGISTRADO ENERGÍA
+    if (initialEnergy === null) {
+      setPendingCategory(categoryKey);
+      setShowEnergyModal(true);
+      return;
+    }
+
+    executeCardDraw(categoryKey);
+  };
+
+  // EJECUCIÓN REAL DE LA TIRADA
+  const executeCardDraw = (categoryKey: string) => {
+    const today = getTodayKey();
+    const flipsKey = `tesoros_flips_${today}`;
+    const currentFlipsCount = parseInt(localStorage.getItem(flipsKey) || '0', 10);
 
     setIsLoading(true);
 
@@ -246,6 +364,8 @@ export default function Home() {
         setUserFeeling(null);
         setUserNote('');
         setShowCheckIn(false);
+        setShowAutoModal(false);
+        setHasShownAutoModal(false);
         setIsCardSaved(isCardInDiary(selected));
 
         const catName = selected['Categoría']?.toUpperCase() || 'SONREÍR';
@@ -267,9 +387,88 @@ export default function Home() {
           localStorage.setItem(`tesoros_stats_${today}`, JSON.stringify(updated));
           return updated;
         });
+
+        trackAnalyticsEvent('card_drawn', {
+          category: catName,
+          card_hook: selected['Anverso (Gancho Científico)'],
+          flip_number: newFlips,
+        });
       }
       setIsLoading(false);
     }, 1200);
+  };
+
+  // SELECCIÓN DE ENERGÍA INICIAL (1-5)
+  const handleSelectEnergy = (level: number) => {
+    const today = getTodayKey();
+    setInitialEnergy(level);
+    localStorage.setItem(`tesoros_energy_${today}`, level.toString());
+    setShowEnergyModal(false);
+
+    // Métrica Analytics y Supabase
+    trackAnalyticsEvent('initial_energy_submitted', { energy_level: level });
+    saveToSupabase('user_energy_checkins', {
+      date: today,
+      energy_level: level,
+      created_at: new Date().toISOString(),
+    });
+
+    if (pendingCategory) {
+      executeCardDraw(pendingCategory);
+      setPendingCategory(null);
+    }
+  };
+
+  // GUARDAR FEEDBACK DE LA CARTA (¿TE SIRVIÓ ESTE TESORO?)
+  const handleCardUtilitySelect = (rating: 'mucho' | 'un_poco' | 'no_mucho') => {
+    setCardUtilityRating(rating);
+    setShowReasonInput(true);
+
+    trackAnalyticsEvent('card_utility_rated', {
+      card: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
+      rating,
+    });
+
+    saveToSupabase('card_utility_feedback', {
+      card_hook: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
+      rating,
+      created_at: new Date().toISOString(),
+    });
+  };
+
+  const handleCardReasonSubmit = () => {
+    if (!cardUtilityReason.trim()) return;
+
+    trackAnalyticsEvent('card_utility_reason_submitted', {
+      card: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
+      rating: cardUtilityRating,
+      reason: cardUtilityReason,
+    });
+
+    saveToSupabase('card_utility_feedback_reasons', {
+      card_hook: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
+      rating: cardUtilityRating,
+      reason: cardUtilityReason,
+      created_at: new Date().toISOString(),
+    });
+
+    setShowReasonInput(false);
+  };
+
+  // ENVIAR ROADMAP / ENCUESTA DE FIN DE SESIÓN
+  const handleEndSessionSurveySubmit = () => {
+    setRoadmapSubmitted(true);
+
+    trackAnalyticsEvent('session_end_survey_submitted', {
+      would_return: wouldReturn,
+      roadmap_wish: roadmapWish,
+    });
+
+    saveToSupabase('session_roadmap_feedback', {
+      would_return: wouldReturn,
+      roadmap_wish: roadmapWish,
+      created_at: new Date().toISOString(),
+    });
   };
 
   const handleAnotherDiamondClick = () => {
@@ -297,6 +496,7 @@ export default function Home() {
     setActiveTab('draw');
     setUserFeeling(entry.feeling || null);
     setUserNote(entry.note || '');
+    setHasShownAutoModal(true);
   };
 
   const saveCardToDiary = (cardToSave: Card, feelingText?: string, noteText?: string) => {
@@ -485,6 +685,11 @@ export default function Home() {
     );
   };
 
+  const closeAutoModal = () => {
+    setShowAutoModal(false);
+    setHasShownAutoModal(true);
+  };
+
   return (
     <>
       <style jsx global>{`
@@ -553,7 +758,113 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL COMENTARIOS / FEEDBACK */}
+      {/* MODAL 1: ¿CÓMO LLEGAS HOY? (MEDIDOR DE ENERGÍA DE ENTRADA 1-5) */}
+      {showEnergyModal && (
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-5">
+            <div className="text-4xl">🪫⚡🔋</div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase font-bold">
+                ✦ CHECK-IN INICIAL ✦
+              </span>
+              <h3 className="text-xl font-serif font-bold text-[#1C1817] mt-1">
+                ¿Cómo llegas hoy?
+              </h3>
+              <p className="text-xs text-[#8A827A] mt-1">
+                Mide tu nivel de energía antes de revelar tu tesoro
+              </p>
+            </div>
+
+            {/* BATERÍA VISUAL 1 - 5 */}
+            <div className="grid grid-cols-5 gap-2 w-full pt-1">
+              {[
+                { lvl: 1, label: 'Agotado', icon: '🪫' },
+                { lvl: 2, label: 'Bajo', icon: '📉' },
+                { lvl: 3, label: 'Neutro', icon: '⚖️' },
+                { lvl: 4, label: 'Bueno', icon: '🔋' },
+                { lvl: 5, label: 'Pleno', icon: '⚡' },
+              ].map((item) => (
+                <button
+                  key={item.lvl}
+                  onClick={() => handleSelectEnergy(item.lvl)}
+                  className="p-2.5 rounded-2xl bg-white border border-[#E3DDD5] hover:border-[#997343] hover:bg-amber-50/60 transition-all flex flex-col items-center justify-center space-y-1 shadow-xs active:scale-95 group"
+                >
+                  <span className="text-lg group-hover:scale-110 transition-transform">
+                    {item.icon}
+                  </span>
+                  <span className="text-[11px] font-mono font-bold text-[#1C1817]">
+                    {item.lvl}
+                  </span>
+                  <span className="text-[8px] text-[#8A827A] leading-tight font-medium">
+                    {item.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <p className="text-[10px] text-[#8A827A] italic">
+              Al tocar una opción revelaremos tu diamante de inmediato.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL AUTO (SOLO SALTA UNA VEZ PER FLIP) */}
+      {showAutoModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
+            <div className="text-4xl">💎</div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
+                ✦ ¿CÓMO DESEAS CONTINUAR? ✦
+              </span>
+              <h3 className="text-lg font-serif font-bold text-[#1C1817] mt-1">
+                Tómate tu momento
+              </h3>
+            </div>
+
+            <div className="w-full space-y-2.5 pt-1">
+              <button
+                onClick={() => {
+                  closeAutoModal();
+                  const btnType = getPrimaryButtonType(currentCard);
+                  if (btnType === 'PRACTICA') {
+                    practicaRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    handleAnotherDiamondClick();
+                  }
+                }}
+                className="w-full py-3 rounded-xl bg-[#1C1817] text-white text-xs font-serif italic font-semibold hover:bg-[#332E2B] transition-all shadow-sm flex items-center justify-center gap-2"
+              >
+                <span>{getPrimaryButtonType(currentCard) === 'PRACTICA' ? '✅' : '✨'}</span>
+                <span>
+                  {getPrimaryButtonType(currentCard) === 'PRACTICA' ? 'Lo hice' : 'Continuar'}
+                </span>
+              </button>
+
+              <button
+                onClick={() => {
+                  closeAutoModal();
+                  setShowCheckIn(true);
+                }}
+                className="w-full py-3 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-xs font-semibold hover:bg-[#FAF8F5] transition-all flex items-center justify-center gap-2 shadow-2xs"
+              >
+                <span>❤️‍🩹</span>
+                <span>Cuánto te ayudó ?</span>
+              </button>
+            </div>
+
+            <button
+              onClick={closeAutoModal}
+              className="text-xs text-[#8A827A] hover:text-[#1C1817] pt-1"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL COMENTARIOS / FEEDBACK GENERAL */}
       {showFeedbackModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
@@ -597,6 +908,8 @@ export default function Home() {
                     onClick={() => {
                       if (!feedbackText.trim()) return;
                       setFeedbackSent(true);
+                      trackAnalyticsEvent('general_feedback_sent', { text: feedbackText });
+                      saveToSupabase('general_user_feedback', { text: feedbackText, created_at: new Date().toISOString() });
                     }}
                     disabled={!feedbackText.trim()}
                     className="w-full py-2.5 rounded-xl bg-[#997343] text-white text-xs font-semibold hover:bg-[#836237] disabled:opacity-50 transition-all shadow-sm"
@@ -644,13 +957,13 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL: LÍMITE DIARIO */}
+      {/* MODAL: LÍMITE DIARIO + ENCUESTA FINAL DE SESIÓN / ROADMAP */}
       {showLimitModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
-            <div className="text-5xl">🌙</div>
+        <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="text-4xl">🌙</div>
             <div>
-              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase font-bold">
                 ✦ LÍMITE DIARIO ALCANZADO ✦
               </span>
               <h3 className="text-xl font-serif font-bold text-[#1C1817] mt-1">
@@ -661,14 +974,81 @@ export default function Home() {
               Has revelado tus <strong>3 diamantes de hoy</strong> (3/3). Tómate el día para reflexionar e integrar estos mensajes. Mañana podrás descubrir nuevos tesoros.
             </p>
 
-            <div className="w-full space-y-2 pt-2">
+            {/* SECCIÓN "¿CÓMO TE VAS?" Y SURVEY ROADMAP */}
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-4 text-left space-y-3.5 my-1 shadow-xs">
+              <div className="text-center pb-1 border-b border-[#E3DDD5]/60">
+                <span className="text-[10px] font-mono font-bold uppercase text-[#997343] tracking-wider">
+                  ✦ ¿CÓMO TE VAS? ✦
+                </span>
+              </div>
+
+              {/* ¿VOLVERÍAS MAÑANA? */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-[#1C1817]">
+                  ¿Volverías mañana?
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setWouldReturn(true)}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                      wouldReturn === true
+                        ? 'bg-[#1C1817] text-white border-[#1C1817]'
+                        : 'bg-[#FAF8F5] text-[#332E2B] border-[#E3DDD5] hover:border-[#997343]'
+                    }`}
+                  >
+                    Sí
+                  </button>
+                  <button
+                    onClick={() => setWouldReturn(false)}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                      wouldReturn === false
+                        ? 'bg-[#1C1817] text-white border-[#1C1817]'
+                        : 'bg-[#FAF8F5] text-[#332E2B] border-[#E3DDD5] hover:border-[#997343]'
+                    }`}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+
+              {/* PREGUNTA ROADMAP */}
+              <div className="space-y-1.5 pt-1">
+                <p className="text-xs font-semibold text-[#1C1817]">
+                  ¿Qué necesitas encontrar aquí que todavía no existe? 🔥🔥🔥
+                </p>
+                <textarea
+                  value={roadmapWish}
+                  onChange={(e) => setRoadmapWish(e.target.value)}
+                  placeholder="Un diario de gratitud, meditaciones de 1 min, ejercicios respiratorios..."
+                  rows={3}
+                  className="w-full text-xs p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E3DDD5] text-[#1C1817] placeholder-[#B5AEA7] focus:outline-none focus:border-[#997343] resize-none"
+                />
+              </div>
+
+              {roadmapSubmitted ? (
+                <div className="p-2.5 bg-amber-50 text-[#997343] text-[11px] font-semibold text-center rounded-xl border border-amber-200">
+                  ✨ ¡Gracias! Tu idea nos ayuda a construir el futuro.
+                </div>
+              ) : (
+                <button
+                  onClick={handleEndSessionSurveySubmit}
+                  disabled={!roadmapWish.trim() && wouldReturn === null}
+                  className="w-full py-2 bg-[#997343] text-white text-xs font-semibold rounded-xl hover:bg-[#836237] disabled:opacity-40 transition-all shadow-xs"
+                >
+                  Guardar mis respuestas
+                </button>
+              )}
+            </div>
+
+            {/* BOTONES DE ACCIÓN LÍMITE */}
+            <div className="w-full space-y-2 pt-1">
               {todayCards.length > 0 && (
                 <button
                   onClick={() => {
                     setShowLimitModal(false);
                     openTodayCarousel();
                   }}
-                  className="w-full py-2.5 rounded-xl bg-[#997343] text-white text-xs font-semibold hover:bg-[#836237] transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                  className="w-full py-2.5 rounded-xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all flex items-center justify-center gap-1.5 shadow-sm"
                 >
                   <span>👁️</span> Ver mis cartas de hoy ({todayCards.length})
                 </button>
@@ -745,7 +1125,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL: CHECK-IN ("¿TE AYUDÓ?") */}
+      {/* MODAL: CUÁNTO TE AYUDÓ */}
       {showCheckIn && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
@@ -755,15 +1135,15 @@ export default function Home() {
                 ✦ REFLEXIÓN DEL MOMENTO ✦
               </span>
               <h3 className="text-lg font-serif font-bold text-[#1C1817] mt-1">
-                ¿Qué tanto te ayudó este diamante?
+                Cuánto te ayudó ?
               </h3>
             </div>
 
             <div className="flex flex-col gap-2.5 w-full">
               {[
-                { label: 'Igual 🙃', desc: 'No me causó impacto por ahora' },
-                { label: 'Bien 😊', desc: 'Me dio una buena perspectiva' },
-                { label: 'Me encantó ❤️', desc: 'Llegó justo en el momento exacto' },
+                { label: '❤️ Mucho', desc: 'Llegó justo en el momento exacto' },
+                { label: '🙂 Un poco', desc: 'Me dio una buena perspectiva' },
+                { label: '😐 No mucho', desc: 'No me causó impacto por ahora' },
               ].map((option) => (
                 <button
                   key={option.label}
@@ -1089,8 +1469,9 @@ export default function Home() {
                   )}
                 </div>
 
-                {/* CARTA 3D FLIP */}
+                {/* CARTA 3D FLIP CON REF */}
                 <div
+                  ref={cardRef}
                   className="w-full aspect-[63/88] max-h-[460px] cursor-pointer my-1 group"
                   style={{ perspective: '1000px' }}
                   onClick={handleFlipCard}
@@ -1189,8 +1570,74 @@ export default function Home() {
                       <span>Sacar otro diamante</span>
                     </button>
 
-                    {/* CUADRO DE TEXTO Y ACCIÓN DIRECTA DE GUARDADO INTEGRADO */}
+                    {/* NUEVA SECCIÓN DE FEEDBACK RÁPIDO: ¿TE SIRVIÓ ESTE TESORO? */}
                     <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3 shadow-xs space-y-2">
+                      <span className="text-[10px] font-mono font-bold uppercase text-[#997343] block">
+                        ✦ ¿TE SIRVIÓ ESTE TESORO?
+                      </span>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          onClick={() => handleCardUtilitySelect('mucho')}
+                          className={`py-2 px-1 rounded-xl text-[10px] font-bold border transition-all ${
+                            cardUtilityRating === 'mucho'
+                              ? 'bg-amber-100 border-[#997343] text-[#997343]'
+                              : 'bg-[#FAF8F5] border-[#E3DDD5] hover:border-[#997343]'
+                          }`}
+                        >
+                          ❤️ Mucho
+                        </button>
+                        <button
+                          onClick={() => handleCardUtilitySelect('un_poco')}
+                          className={`py-2 px-1 rounded-xl text-[10px] font-bold border transition-all ${
+                            cardUtilityRating === 'un_poco'
+                              ? 'bg-amber-100 border-[#997343] text-[#997343]'
+                              : 'bg-[#FAF8F5] border-[#E3DDD5] hover:border-[#997343]'
+                          }`}
+                        >
+                          🙂 Un poco
+                        </button>
+                        <button
+                          onClick={() => handleCardUtilitySelect('no_mucho')}
+                          className={`py-2 px-1 rounded-xl text-[10px] font-bold border transition-all ${
+                            cardUtilityRating === 'no_mucho'
+                              ? 'bg-amber-100 border-[#997343] text-[#997343]'
+                              : 'bg-[#FAF8F5] border-[#E3DDD5] hover:border-[#997343]'
+                          }`}
+                        >
+                          😐 No mucho
+                        </button>
+                      </div>
+
+                      {/* CAMPO OPCIONAL ¿QUIERES CONTARNOS POR QUÉ? */}
+                      {showReasonInput && (
+                        <div className="pt-1 space-y-1.5 animate-fadeIn">
+                          <label className="text-[9px] font-mono text-[#8A827A] uppercase block">
+                            ¿Quieres contarnos por qué? (Campo opcional)
+                          </label>
+                          <div className="flex gap-1.5">
+                            <input
+                              type="text"
+                              value={cardUtilityReason}
+                              onChange={(e) => setCardUtilityReason(e.target.value)}
+                              placeholder="Escribe brevemente tu razón..."
+                              className="flex-1 text-xs p-2 rounded-xl bg-[#FAF8F5] border border-[#E3DDD5] focus:outline-none focus:border-[#997343]"
+                            />
+                            <button
+                              onClick={handleCardReasonSubmit}
+                              className="px-3 py-1 bg-[#1C1817] text-white text-xs font-semibold rounded-xl hover:bg-[#332E2B] transition-all shrink-0"
+                            >
+                              Guardar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* CUADRO DE TEXTO Y PRÁCTICA */}
+                    <div
+                      ref={practicaRef}
+                      className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3 shadow-xs space-y-2 scroll-mt-4"
+                    >
                       <div className="flex justify-between items-center px-0.5">
                         <label className="text-[10px] font-mono font-bold uppercase text-[#997343] flex items-center gap-1">
                           <span>✍️</span> Práctica / Mi Reflexión:
@@ -1211,7 +1658,6 @@ export default function Home() {
                           className="w-full text-xs p-2.5 pb-9 rounded-xl bg-[#FAF8F5] border border-[#E3DDD5] text-[#1C1817] placeholder-[#B5AEA7] focus:outline-none focus:border-[#997343] resize-none transition-all"
                         />
 
-                        {/* ACCIÓN DIRECTA DENTRO DEL ÁREA DE TEXTO */}
                         <div className="absolute bottom-2 right-2 flex items-center gap-1">
                           <button
                             onClick={handleSaveToDiary}
@@ -1228,7 +1674,8 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-1.5 w-full">
+                    {/* BOTONES INFERIORES */}
+                    <div className="grid grid-cols-3 gap-1.5 w-full">
                       <button
                         onClick={handleSaveToDiary}
                         className={`py-2 rounded-xl border text-[10px] font-medium flex items-center justify-center gap-1 transition-all ${
@@ -1239,14 +1686,6 @@ export default function Home() {
                       >
                         <span>💎</span>
                         <span>{isCardSaved ? 'Guardado' : 'Guardar'}</span>
-                      </button>
-
-                      <button
-                        onClick={() => setShowCheckIn(true)}
-                        className="py-2 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
-                      >
-                        <span>❤️‍🩹</span>
-                        <span>¿Te ayudó?</span>
                       </button>
 
                       <button
@@ -1369,7 +1808,6 @@ export default function Home() {
                         </p>
                       )}
                       
-                      {/* MOSTRAR LA NOTA DE LA PRÁCTICA EN EL DIARIO */}
                       {entry.note && (
                         <div className="bg-white/60 p-2.5 rounded-xl border border-black/5 text-xs text-[#1C1817] space-y-0.5">
                           <span className="text-[10px] font-mono font-bold text-[#997343] uppercase flex items-center gap-1">
@@ -1400,7 +1838,7 @@ export default function Home() {
           </div>
         )}
 
-        {/* PESTAÑA: AHORA! (SINCRONÍA EN TIEMPO REAL) */}
+        {/* PESTAÑA: AHORA! */}
         {activeTab === 'thermometer' && (
           <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[75vh] animate-fadeIn">
             <div className="flex justify-between items-start mb-1">
