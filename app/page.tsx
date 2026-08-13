@@ -4,6 +4,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 import rawCards from './cards.json';
 
+const treasureProgressMessages = [
+  { day: 1, message: "Cada gran transformación comienza con una pequeña pausa consciente.", phase: 1 },
+  { day: 2, message: "Sembrar una intención hoy es abrir espacio para la calma de mañana.", phase: 1 },
+  { day: 3, message: "Reconocer cómo te sientes es el primer paso para cuidar tu mundo interior.", phase: 1 },
+  { day: 4, message: "No necesitas respuestas perfectas, solo la disposición a escucharte.", phase: 1 },
+  { day: 5, message: "Un respiro profundo le recuerda a tu mente que aquí y ahora estás a salvo.", phase: 1 },
+  { day: 6, message: "La constancia no es perfección, es volver a ti día tras día.", phase: 1 },
+  { day: 7, message: "Has completado tu primera semana. Tu semilla de intención ha echado raíces.", phase: 1 },
+  { day: 8, message: "El hábito se fortalece cuando eliges hacer espacio para tu bienestar.", phase: 2 },
+  { day: 9, message: "Tu atención es tu tesoro más valioso; llévala a donde te aporte paz.", phase: 2 },
+  { day: 10, message: "Cada pequeña decisión consciente está moldeando tu nueva versión.", phase: 2 },
+  { day: 11, message: "La claridad llega cuando te permites pausar el ruido exterior.", phase: 2 },
+  { day: 12, message: "Celebra tus pequeños avances; cada día que estás aquí cuenta.", phase: 2 },
+  { day: 13, message: "Confía en el proceso de ir puliendo tus pensamientos poco a poco.", phase: 2 },
+  { day: 14, message: "Estás creando un refugio interno al que siempre puedes regresar.", phase: 2 },
+  { day: 15, message: "Mitad del viaje. Tu hábito brilla con luz propia y solidez.", phase: 2 },
+  { day: 16, message: "La transformación interior ocurre en el silencio de tus reflexiones.", phase: 3 },
+  { day: 17, message: "Permítete soltar lo que ya no te sirve para hacer espacio a lo nuevo.", phase: 3 },
+  { day: 18, message: "Tu fuerza interior crece cuando te abrazas con compasión y amabilidad.", phase: 3 },
+  { day: 19, message: "Desplegar tus alas requiere confiar en la fortaleza que has construido.", phase: 3 },
+  { day: 20, message: "Cada desafío que enfrentas con serenidad es una faceta pulida en tu ser.", phase: 3 },
+  { day: 21, message: "21 días cultivando consciencia. Tu perspectiva se ha transformado.", phase: 3 },
+  { day: 22, message: "Mírate con asombro; has recorrido un camino lleno de valentía.", phase: 3 },
+  { day: 23, message: "Tu serenidad empieza a contagiar e inspirar a quien te rodea.", phase: 3 },
+  { day: 24, message: "Honra tu recorrido. Estás listo/a para el resplandor final.", phase: 3 },
+  { day: 25, message: "Tu luz interior se expande y llena de propósito tu día a día.", phase: 4 },
+  { day: 26, message: "El autodescubrimiento no es un destino, es una forma radiante de vivir.", phase: 4 },
+  { day: 27, message: "Siente el orgullo de haber sido fiel a tu compromiso contigo.", phase: 4 },
+  { day: 28, message: "Eres el autor/a de tu propia paz y el guardián de tus tesoros.", phase: 4 },
+  { day: 29, message: "Tu brillo es único, auténtico y completamente tuyo.", phase: 4 },
+  { day: 30, message: "A solo un paso de completar un ciclo entero de amor propio y consciencia.", phase: 4 },
+  { day: 31, message: "¡Felicidades! Has pulido tu diamante al 100%. Tu resplandor es infinito y estás listo/a para nuevos horizontes.", phase: 4 }
+];
+
 interface Card {
   '#'?: number | string;
   'Color HEX'?: string;
@@ -12,6 +46,14 @@ interface Card {
   'Modelo (Intención)'?: string;
   'Anverso (Gancho Científico)'?: string;
   'Reverso (Instrucción de Activación)'?: string;
+}
+
+interface PolishedDiamondRecord {
+  id: string;
+  cycleNumber: number;
+  dateCompleted: string;
+  name: string;
+  notes?: string;
 }
 
 // COLORES OFICIALES
@@ -41,6 +83,37 @@ const CATEGORIES = [
   { key: 'EVOLUCIONAR', label: 'EVOLUCIONAR', sub: 'Fuerza interior', color: '#E1BEE7', tilt: 'rotate-1' },
   { key: 'COMPARTIR', label: 'COMPARTIR', sub: 'Conexión y generosidad', color: '#FF9A8B', tilt: 'rotate-0' },
   { key: 'CAJA DE HERRAMIENTAS', label: 'CAJA DE HERRAMIENTAS', sub: 'No lo tengo claro', color: '#B8B8B8', tilt: '-rotate-1' },
+];
+
+// TESTIMONIOS DEMO PARA EL MURO DE "TU VOZ"
+const INITIAL_COMMUNITY_VOICES = [
+  {
+    id: 'v1',
+    author: 'Elena G.',
+    location: 'Caracas, VE',
+    text: 'Esta herramienta me dio una pausa que no sabía que necesitaba en medio del caos diario. Gracias por este refugio.',
+    feeling: '❤️ Mucho',
+    category: 'RESPIRAR',
+    date: 'Ayer'
+  },
+  {
+    id: 'v2',
+    author: 'Carlos M.',
+    location: 'Madrid, ES',
+    text: 'Me encantó la carta de hoy de Evolucionar. Me ayudó a encarar una reunión difícil con mayor serenidad.',
+    feeling: '❤️ Mucho',
+    category: 'EVOLUCIONAR',
+    date: 'Hace 2 días'
+  },
+  {
+    id: 'v3',
+    author: 'Sofía R.',
+    location: 'Bogotá, CO',
+    text: 'Saber que cada kit apoya la salud emocional en Venezuela le da un propósito hermoso a esta práctica.',
+    feeling: '🙂 Un poco',
+    category: 'COMPARTIR',
+    date: 'Hace 3 días'
+  }
 ];
 
 const cards: Card[] = (rawCards as Card[]).filter(
@@ -82,7 +155,30 @@ const ZERO_STATS = {
   'CAJA DE HERRAMIENTAS': 0,
 };
 
-// TELEMETRÍA: ANALYTICS & SUPABASE HELPERS
+const getPhaseInfo = (day: number) => {
+  if (day <= 7) return { phase: 1, title: 'Fase 1: La Semilla de la Intención 🌱' };
+  if (day <= 15) return { phase: 2, title: 'Fase 2: Construyendo el Hábito 💎' };
+  if (day <= 24) return { phase: 3, title: 'Fase 3: La Transformación Interior 🦋' };
+  return { phase: 4, title: 'Fase 4: El Resplandor Final ✨' };
+};
+
+const getCalendarDays = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+
+  let startingDayIndex = firstDay.getDay() - 1;
+  if (startingDayIndex === -1) startingDayIndex = 6;
+
+  const totalDays = lastDay.getDate();
+  const monthName = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(now);
+
+  return { year, month, startingDayIndex, totalDays, monthName };
+};
+
 const trackAnalyticsEvent = (eventName: string, params: Record<string, any>) => {
   if (typeof window !== 'undefined' && (window as any).gtag) {
     (window as any).gtag('event', eventName, params);
@@ -95,7 +191,7 @@ const saveToSupabase = async (tableName: string, payload: Record<string, any>) =
 };
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<'draw' | 'diary' | 'thermometer' | 'mission'>('draw');
+  const [activeTab, setActiveTab] = useState<'draw' | 'journey' | 'diary' | 'thermometer' | 'voice'>('draw');
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [userFeeling, setUserFeeling] = useState<string | null>(null);
@@ -104,57 +200,57 @@ export default function Home() {
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [isCardSaved, setIsCardSaved] = useState(false);
 
-  // FLUJO MEDIDOR DE ENERGÍA
+  const [cycleDay, setCycleDay] = useState<number>(1);
+  const [completedCycles, setCompletedCycles] = useState<PolishedDiamondRecord[]>([]);
+  const [showDay31Modal, setShowDay31Modal] = useState<boolean>(false);
+  const [selectedGridDay, setSelectedGridDay] = useState<number | null>(null);
+
   const [showEnergyModal, setShowEnergyModal] = useState<boolean>(false);
   const [initialEnergy, setInitialEnergy] = useState<number | null>(null);
   const [pendingCategory, setPendingCategory] = useState<string | null>(null);
 
-  // FLUJO FEEDBACK INDIVIDUAL DE CARTA
   const [cardUtilityRating, setCardUtilityRating] = useState<'mucho' | 'un_poco' | 'no_mucho' | null>(null);
   const [cardUtilityReason, setCardUtilityReason] = useState<string>('');
   const [showReasonInput, setShowReasonInput] = useState<boolean>(false);
 
-  // FLUJO ENCUESTA FINAL / ROADMAP
   const [wouldReturn, setWouldReturn] = useState<boolean | null>(null);
   const [roadmapWish, setRoadmapWish] = useState<string>('');
   const [roadmapSubmitted, setRoadmapSubmitted] = useState<boolean>(false);
 
-  // FEEDBACK
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
   const [feedbackSent, setFeedbackSent] = useState<boolean>(false);
 
-  // AUTO MODAL
   const [showAutoModal, setShowAutoModal] = useState<boolean>(false);
   const [hasShownAutoModal, setHasShownAutoModal] = useState<boolean>(false);
   const practicaRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  // RACHA Y CALENDARIO
   const [streak, setStreak] = useState<number>(0);
   const [lastActiveDate, setLastActiveDate] = useState<string>('');
   const [activityMap, setActivityMap] = useState<Record<string, string>>({});
   const [showStreakModal, setShowStreakModal] = useState<boolean>(false);
 
-  // ANIMACIONES
   const [isFlying, setIsFlying] = useState(false);
   const [isDiarySparkling, setIsDiarySparkling] = useState(false);
   const [flyingCard, setFlyingCard] = useState<Card | null>(null);
 
-  // TIRADAS DIARIAS Y CARTAS DE HOY
   const [todayFlips, setTodayFlips] = useState<number>(0);
   const [todayCards, setTodayCards] = useState<Card[]>([]);
   const [showTodayModal, setShowTodayModal] = useState<boolean>(false);
   const [carouselIndex, setCarouselIndex] = useState<number>(0);
   const [modalIsFlipped, setModalIsFlipped] = useState<boolean>(false);
 
-  // MODALES
   const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
   const [showCategoryChoiceModal, setShowCategoryChoiceModal] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // ESTADÍSTICAS DINÁMICAS (AHORA!)
   const [dailyStats, setDailyStats] = useState<Record<string, number>>(ZERO_STATS);
+
+  // ESTADOS ESPECÍFICOS DE LA PESTAÑA "TU VOZ"
+  const [voiceInput, setVoiceInput] = useState<string>('');
+  const [voiceSubmitted, setVoiceSubmitted] = useState<boolean>(false);
+  const [communityVoices, setCommunityVoices] = useState(INITIAL_COMMUNITY_VOICES);
 
   useEffect(() => {
     const today = getTodayKey();
@@ -163,6 +259,14 @@ export default function Home() {
     const savedLastDate = localStorage.getItem('tesoros_last_active_date') || '';
     setStreak(savedStreak);
     setLastActiveDate(savedLastDate);
+
+    const savedCycleDay = parseInt(localStorage.getItem('tesoros_cycle_day') || '1', 10);
+    setCycleDay(savedCycleDay);
+
+    const savedCompletedCycles = localStorage.getItem('tesoros_completed_cycles');
+    if (savedCompletedCycles) {
+      try { setCompletedCycles(JSON.parse(savedCompletedCycles)); } catch (e) {}
+    }
 
     const savedActivityMap = localStorage.getItem('tesoros_activity_map');
     if (savedActivityMap) {
@@ -224,26 +328,6 @@ export default function Home() {
     };
   }, [isFlipped, currentCard, hasShownAutoModal]);
 
-  useEffect(() => {
-    if (!isFlipped || showAutoModal || hasShownAutoModal) return;
-
-    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
-      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
-        setShowAutoModal(true);
-        setHasShownAutoModal(true);
-      }
-    };
-
-    const timer = setTimeout(() => {
-      document.addEventListener('click', handleOutsideClick);
-    }, 200);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('click', handleOutsideClick);
-    };
-  }, [isFlipped, showAutoModal, hasShownAutoModal]);
-
   const getPrimaryButtonType = (card: Card | null): 'PRACTICA' | 'CONTINUAR' => {
     if (!card) return 'CONTINUAR';
     const model = (card['Modelo (Intención)'] || '').toUpperCase();
@@ -265,6 +349,21 @@ export default function Home() {
       newActivityMap[today] = categoryKey;
       setActivityMap(newActivityMap);
       localStorage.setItem('tesoros_activity_map', JSON.stringify(newActivityMap));
+
+      const lastCycleUpdate = localStorage.getItem('tesoros_last_cycle_update');
+      if (lastCycleUpdate !== today) {
+        if (cycleDay < 31) {
+          const nextDay = cycleDay + 1;
+          setCycleDay(nextDay);
+          localStorage.setItem('tesoros_cycle_day', nextDay.toString());
+          if (nextDay === 31) {
+            setShowDay31Modal(true);
+          }
+        } else if (cycleDay === 31) {
+          setShowDay31Modal(true);
+        }
+        localStorage.setItem('tesoros_last_cycle_update', today);
+      }
     }
 
     let newStreak = streak;
@@ -280,6 +379,24 @@ export default function Home() {
     setLastActiveDate(today);
     localStorage.setItem('tesoros_streak', newStreak.toString());
     localStorage.setItem('tesoros_last_active_date', today);
+  };
+
+  const handleRestartCycle = () => {
+    const newCompletedRecord: PolishedDiamondRecord = {
+      id: Date.now().toString(),
+      cycleNumber: completedCycles.length + 1,
+      dateCompleted: new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }),
+      name: `Diamante Pulido #${completedCycles.length + 1}`,
+      notes: '31 días de autodescubrimiento completados con éxito.',
+    };
+
+    const updated = [newCompletedRecord, ...completedCycles];
+    setCompletedCycles(updated);
+    localStorage.setItem('tesoros_completed_cycles', JSON.stringify(updated));
+
+    setCycleDay(1);
+    localStorage.setItem('tesoros_cycle_day', '1');
+    setShowDay31Modal(false);
   };
 
   const handleGoHome = () => {
@@ -555,6 +672,30 @@ export default function Home() {
     }
   };
 
+  const handleVoiceSubmit = () => {
+    if (!voiceInput.trim()) return;
+
+    const newVoice = {
+      id: Date.now().toString(),
+      author: 'Tú',
+      location: 'Comunidad',
+      text: voiceInput.trim(),
+      feeling: '❤️ Mucho',
+      category: 'COMPARTIR',
+      date: 'Ahora'
+    };
+
+    setCommunityVoices([newVoice, ...communityVoices]);
+    setVoiceSubmitted(true);
+    trackAnalyticsEvent('user_voice_submitted', { text: voiceInput });
+    saveToSupabase('user_voices', { text: voiceInput, created_at: new Date().toISOString() });
+
+    setTimeout(() => {
+      setVoiceInput('');
+      setVoiceSubmitted(false);
+    }, 3500);
+  };
+
   const getMostNeededStats = () => {
     const total = Object.values(dailyStats).reduce((a, b) => a + b, 0);
     const sorted = Object.entries(dailyStats).sort((a, b) => b[1] - a[1]);
@@ -605,191 +746,17 @@ export default function Home() {
     setShowTodayModal(true);
   };
 
-  // CÁLCULO DE DÍAS ACTIVOS EN EL MES ACTUAL PARA EL PULIDO DE DIAMANTE
-  const getMonthlyActivityCount = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const monthStr = String(now.getMonth() + 1).padStart(2, '0');
-    const prefix = `${year}-${monthStr}`;
-
-    return Object.keys(activityMap).filter((dateKey) => dateKey.startsWith(prefix)).length;
-  };
-
-  const getDiamondPolishStage = (activeDays: number, totalDaysInMonth: number) => {
-    const percentage = Math.min(100, Math.round((activeDays / totalDaysInMonth) * 100));
-
-    if (activeDays === 0) {
-      return {
-        level: 'Faceta Inicial',
-        desc: 'Tu diamante te espera. Cada ingreso pulirá un nuevo destello.',
-        scale: 'scale-90 opacity-70',
-        glowStyle: 'drop-shadow(0 0 4px rgba(184,184,184,0.4))',
-        badgeColor: 'bg-gray-100 text-[#8A827A]',
-        percentage,
-      };
-    } else if (percentage < 25) {
-      return {
-        level: 'Primeros Destellos',
-        desc: '¡Tu gema empieza a tomar forma! Estás regalándote tiempo de valor.',
-        scale: 'scale-95 opacity-85',
-        glowStyle: 'drop-shadow(0 0 12px rgba(250,208,44,0.6))',
-        badgeColor: 'bg-amber-100 text-[#997343]',
-        percentage,
-      };
-    } else if (percentage < 50) {
-      return {
-        level: 'Diamante Brillante',
-        desc: '¡Qué hermoso resplandor! Tu constancia sin presiones está dando luz.',
-        scale: 'scale-100 opacity-95',
-        glowStyle: 'drop-shadow(0 0 20px rgba(250,208,44,0.85))',
-        badgeColor: 'bg-yellow-100 text-yellow-800',
-        percentage,
-      };
-    } else if (percentage < 75) {
-      return {
-        level: 'Diamante Radiante',
-        desc: 'Tu tesoro interior brilla con fuerza este mes.',
-        scale: 'scale-105 opacity-100',
-        glowStyle: 'drop-shadow(0 0 28px rgba(255,180,0,0.95))',
-        badgeColor: 'bg-amber-200 text-[#1C1817]',
-        percentage,
-      };
-    } else {
-      return {
-        level: 'Joya Maestra',
-        desc: '¡Un diamante deslumbrante! Has llenado tu mes de autopremio y calma.',
-        scale: 'scale-110 opacity-100',
-        glowStyle: 'drop-shadow(0 0 36px rgba(255,215,0,1))',
-        badgeColor: 'bg-amber-400 text-[#1C1817]',
-        percentage,
-      };
-    }
-  };
-
-  const renderCalendarGrid = () => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const firstDayIndex = new Date(year, month, 1).getDay();
-    const startOffset = (firstDayIndex + 6) % 7;
-
-    const monthName = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-    const activeDaysThisMonth = getMonthlyActivityCount();
-    const stage = getDiamondPolishStage(activeDaysThisMonth, daysInMonth);
-
-    const gridCells = [];
-
-    for (let i = 0; i < startOffset; i++) {
-      gridCells.push(<div key={`empty-${i}`} className="h-8 w-8" />);
-    }
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dayKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const categoryFound = activityMap[dayKey];
-      const hasActivity = Boolean(categoryFound);
-      const categoryColor = hasActivity
-        ? CATEGORY_COLORS[categoryFound?.toUpperCase()] || '#FAD02C'
-        : 'transparent';
-
-      gridCells.push(
-        <div key={dayKey} className="flex items-center justify-center h-8 w-8 relative">
-          {hasActivity ? (
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] shadow-sm cursor-pointer border border-black/10 hover:scale-110 transition-transform animate-pulse-glow"
-              style={{ backgroundColor: categoryColor }}
-              title={`Tesoro descubierto: ${categoryFound}`}
-              onClick={() => {
-                setShowStreakModal(false);
-                setCurrentCard(null);
-                setActiveTab('diary');
-              }}
-            >
-              💎
-            </div>
-          ) : (
-            <div className="w-7 h-7 rounded-full bg-[#E3DDD5]/30 flex items-center justify-center text-[11px] font-mono text-[#8A827A]">
-              {day}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div className="w-full space-y-3">
-        {/* EXPERIENCIA CENTRAL DE PULIDO DE DIAMANTE */}
-        <div className="w-full bg-gradient-to-b from-amber-50/80 via-white to-amber-50/30 border border-[#E3DDD5] rounded-3xl p-5 shadow-sm flex flex-col items-center text-center space-y-3 relative overflow-hidden">
-          <div className="flex items-center gap-1.5 bg-white/80 border border-[#E3DDD5] px-3 py-1 rounded-full shadow-2xs">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#997343]">
-              ✦ PULIDO DEL MES DE {monthName.toUpperCase()} ✦
-            </span>
-          </div>
-
-          {/* DIAMANTE CENTRAL ANIMADO */}
-          <div className="py-2 flex flex-col items-center justify-center relative">
-            <div
-              className={`text-6xl transition-all duration-700 transform cursor-pointer hover:scale-125 ${stage.scale}`}
-              style={{ filter: stage.glowStyle }}
-            >
-              💎
-            </div>
-            <span
-              className={`mt-2 text-[10px] font-mono font-bold px-3 py-0.5 rounded-full uppercase border border-black/5 ${stage.badgeColor}`}
-            >
-              {stage.level}
-            </span>
-          </div>
-
-          <p className="text-xs font-serif italic text-[#1C1817] max-w-[260px] leading-relaxed">
-            {stage.desc}
-          </p>
-
-          {/* BARRA DE PROGRESO DE BRILLO */}
-          <div className="w-full space-y-1.5 pt-1">
-            <div className="flex justify-between items-center text-[10px] font-mono font-bold text-[#8A827A]">
-              <span>Faceta {activeDaysThisMonth} de {daysInMonth}</span>
-              <span className="text-[#997343]">{stage.percentage}% Pulido</span>
-            </div>
-            <div className="w-full bg-[#EAE5DF] h-2.5 rounded-full overflow-hidden p-0.5 border border-black/5">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-[#FAD02C] via-[#E1BEE7] to-[#FF9A8B] transition-all duration-700"
-                style={{ width: `${Math.max(5, stage.percentage)}%` }}
-              />
-            </div>
-          </div>
-
-          <p className="text-[9px] text-[#8A827A] italic leading-tight">
-            Cada día que entras no es una obligación, es tu espacio para premiarte y encontrar paz.
-          </p>
-        </div>
-
-        {/* MAPA DE CALENDARIO */}
-        <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3.5 shadow-sm space-y-2.5">
-          <div className="flex justify-between items-center px-1">
-            <h4 className="text-xs font-serif font-bold text-[#1C1817] capitalize">
-              📅 {monthName}
-            </h4>
-            <span className="text-[9px] font-mono text-[#997343] font-semibold uppercase">
-              Facetas Iluminadas
-            </span>
-          </div>
-          <div className="grid grid-cols-7 text-center text-[10px] font-bold text-[#8A827A] font-mono">
-            <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
-          </div>
-          <div className="grid grid-cols-7 gap-1 place-items-center">
-            {gridCells}
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const brightnessPercentage = Math.min(100, Math.round((cycleDay / 31) * 100));
+  const currentMotivationalMessage = treasureProgressMessages.find((m) => m.day === cycleDay)?.message || treasureProgressMessages[0].message;
+  const currentPhaseInfo = getPhaseInfo(cycleDay);
 
   const closeAutoModal = () => {
     setShowAutoModal(false);
     setHasShownAutoModal(true);
   };
+
+  const todayFirstCategory = activityMap[getTodayKey()];
+  const todayColorHex = todayFirstCategory ? CATEGORY_COLORS[todayFirstCategory] : '#FAD02C';
 
   return (
     <>
@@ -859,7 +826,200 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL 1: ¿CÓMO LLEGAS HOY? */}
+      {/* MODAL RACHA Y CALENDARIO */}
+      {showStreakModal && (() => {
+        const { startingDayIndex, totalDays, monthName } = getCalendarDays();
+        const todayStr = getTodayKey();
+
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-5 border border-[#E3DDD5] shadow-2xl flex flex-col items-center relative space-y-4 max-h-[90vh] overflow-y-auto">
+              <button
+                onClick={() => setShowStreakModal(false)}
+                className="absolute top-3 right-4 text-[#8A827A] hover:text-[#1C1817] text-lg font-bold p-1"
+              >
+                ✕
+              </button>
+
+              {/* BANNER DE RACHA */}
+              <div
+                className="w-full border border-[#E3DDD5] rounded-2xl p-4 text-center space-y-1 shadow-xs transition-colors duration-500"
+                style={{
+                  backgroundColor: todayFirstCategory ? `${todayColorHex}25` : '#FFFBEB',
+                  borderColor: todayFirstCategory ? todayColorHex : '#FDE68A',
+                }}
+              >
+                <span className="text-4xl inline-block animate-pulse">💎</span>
+                <h2 className="text-xl font-serif font-bold text-[#1C1817]">
+                  {streak} {streak === 1 ? 'Día de Racha' : 'Días Puliendo tu Diamante'}
+                </h2>
+                <p className="text-[11px] text-[#332E2B] leading-relaxed">
+                  {streak > 0 
+                    ? 'Tu diamante interior se va puliendo con cada pausa activa que registras.' 
+                    : 'Empieza hoy a pulir tu diamante sacando una carta y registrando tu hábito diario.'}
+                </p>
+              </div>
+
+              {/* CALENDARIO DE PULIDO */}
+              <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-3.5 shadow-xs space-y-2.5">
+                <div className="flex justify-between items-center border-b border-[#E3DDD5]/60 pb-2">
+                  <h3 className="text-xs font-serif font-bold text-[#1C1817] uppercase tracking-wider capitalize">
+                    📅 {monthName}
+                  </h3>
+                  <span className="text-[9px] font-mono font-bold text-[#997343] bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                    {Object.keys(activityMap).length} días pulidos
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 text-center text-[9px] font-mono font-bold text-[#8A827A] pt-0.5">
+                  <span>Lu</span><span>Ma</span><span>Mi</span><span>Ju</span><span>Vi</span><span>Sá</span><span>Do</span>
+                </div>
+
+                <div className="grid grid-cols-7 gap-1 pt-0.5">
+                  {Array.from({ length: startingDayIndex }).map((_, i) => (
+                    <div key={`empty-${i}`} className="aspect-square" />
+                  ))}
+
+                  {Array.from({ length: totalDays }, (_, i) => i + 1).map((dayNum) => {
+                    const now = new Date();
+                    const year = now.getFullYear();
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const dayStr = String(dayNum).padStart(2, '0');
+                    const dateKey = `${year}-${month}-${dayStr}`;
+
+                    const category = activityMap[dateKey];
+                    const isActive = Boolean(category);
+                    const isToday = dateKey === todayStr;
+
+                    return (
+                      <div
+                        key={dateKey}
+                        className={`aspect-square rounded-xl flex flex-col items-center justify-center text-[11px] font-mono relative border transition-all ${
+                          isToday
+                            ? 'border-[#997343] ring-2 ring-[#997343]/40 font-bold'
+                            : 'border-[#E3DDD5]/60'
+                        } ${
+                          isActive
+                            ? 'text-[#1C1817] shadow-2xs font-bold'
+                            : 'bg-[#FAF8F5] text-[#B5AEA7]'
+                        }`}
+                        style={isActive && category ? { backgroundColor: `${CATEGORY_COLORS[category]}80` } : {}}
+                      >
+                        <span>{dayNum}</span>
+                        {isActive && (
+                          <span className="text-[8px] leading-none mt-0.5">💎</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* BOTÓN INTEGRADOR CON MI VIAJE */}
+              <div className="w-full bg-gradient-to-r from-[#1C1817] to-[#332E2B] text-white rounded-2xl p-4 shadow-md space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="text-2xl">🚀</div>
+                  <div className="text-left">
+                    <h3 className="text-xs font-serif font-bold italic">
+                      Conecta con &ldquo;El Viaje&rdquo;
+                    </h3>
+                    <p className="text-[10px] text-amber-200/90 font-light leading-tight mt-0.5">
+                      Tu racha alimenta tu avance en el ciclo de 31 días. ✨
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowStreakModal(false);
+                    setActiveTab('journey');
+                  }}
+                  className="w-full py-2 rounded-xl bg-amber-400 text-[#1C1817] text-xs font-serif italic font-bold hover:bg-amber-300 transition-all shadow-sm flex items-center justify-center gap-1.5"
+                >
+                  <span>✨</span>
+                  <span>Ver mi progreso en El Viaje</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => setShowStreakModal(false)}
+                className="w-full py-1 text-xs text-[#8A827A] hover:text-[#1C1817]"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* MODAL DÍA 31 */}
+      {showDay31Modal && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
+            <div className="text-6xl animate-bounce">💎✨</div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase font-bold">
+                ✦ LOGRO SUPREMO ✦
+              </span>
+              <h3 className="text-xl font-serif font-bold text-[#1C1817] mt-1">
+                ¡DIAMANTE 100% PULIDO!
+              </h3>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-xs font-serif italic text-[#332E2B] leading-relaxed shadow-xs">
+              &ldquo;{treasureProgressMessages[30].message}&rdquo;
+            </div>
+
+            <p className="text-[11px] text-[#8A827A] leading-tight">
+              Tu diamante pulido se ha guardado en la mochila de tu viaje. ¡Estás listo/a para iniciar un nuevo ciclo!
+            </p>
+
+            <button
+              onClick={handleRestartCycle}
+              className="w-full py-3 rounded-xl bg-[#1C1817] text-white text-xs font-serif italic font-semibold hover:bg-[#332E2B] transition-all shadow-md flex items-center justify-center gap-2"
+            >
+              <span>🚀</span>
+              <span>Comenzar un Nuevo Ciclo de 31 Días</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DETALLE DE DIAMANTE DE REJILLA */}
+      {selectedGridDay !== null && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
+            <div className="text-4xl">
+              {selectedGridDay <= cycleDay ? '💎' : '🔒'}
+            </div>
+            <div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase font-bold">
+                ✦ DÍA {selectedGridDay} DE 31 ✦
+              </span>
+              <h3 className="text-lg font-serif font-bold text-[#1C1817] mt-1">
+                {selectedGridDay <= cycleDay ? 'Diamante Desbloqueado' : 'Próxima Faceta'}
+              </h3>
+            </div>
+
+            <div className="bg-white border border-[#E3DDD5] rounded-2xl p-4 text-xs font-serif italic text-[#332E2B] leading-relaxed w-full">
+              &ldquo;{treasureProgressMessages.find((m) => m.day === selectedGridDay)?.message}&rdquo;
+            </div>
+
+            <div className="text-[10px] font-mono text-[#8A827A] space-y-1">
+              <p>Estado del ciclo: {selectedGridDay <= cycleDay ? 'Alcanzado' : 'En progreso'}</p>
+              <p>Ciclo activo: Ciclo #{completedCycles.length + 1}</p>
+            </div>
+
+            <button
+              onClick={() => setSelectedGridDay(null)}
+              className="w-full py-2.5 rounded-xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHECK-IN INICIAL DE ENERGÍA */}
       {showEnergyModal && (
         <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-5">
@@ -909,17 +1069,17 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL AUTO */}
+      {/* MODAL AUTO: ¿CÓMO DESEAS CONTINUAR? */}
       {showAutoModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
-            <div className="text-4xl">💎</div>
+            <div className="text-4xl">✦</div>
             <div>
-              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase">
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase font-bold">
                 ✦ ¿CÓMO DESEAS CONTINUAR? ✦
               </span>
               <h3 className="text-lg font-serif font-bold text-[#1C1817] mt-1">
-                Tómate tu momento
+                Tómate tu momento ✨
               </h3>
             </div>
 
@@ -964,7 +1124,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL COMENTARIOS / FEEDBACK */}
+      {/* MODAL COMENTARIOS */}
       {showFeedbackModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4">
@@ -1029,30 +1189,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL RACHA Y CALENDARIO: PULIDO DE DIAMANTE */}
-      {showStreakModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-5 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-center bg-amber-100 rounded-full px-4 py-1.5 border border-amber-200 shadow-inner gap-1.5">
-              <span className="text-xl">🔥</span>
-              <span className="text-xs font-mono font-bold text-[#997343]">
-                Racha: {streak} {streak === 1 ? 'día' : 'días'}
-              </span>
-            </div>
-
-            {renderCalendarGrid()}
-
-            <button
-              onClick={() => setShowStreakModal(false)}
-              className="w-full py-3 rounded-xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all shadow-sm"
-            >
-              ¡Seguir Puliendo mi Tesoro!
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: LÍMITE DIARIO + ENCUESTA */}
+      {/* MODAL: LÍMITE DIARIO */}
       {showLimitModal && (
         <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn">
           <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-center space-y-4 max-h-[90vh] overflow-y-auto">
@@ -1408,7 +1545,7 @@ export default function Home() {
       )}
 
       {/* COMPONENTE PRINCIPAL */}
-      <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-between pb-20 p-4 max-w-md mx-auto antialiased">
+      <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-between pb-24 p-4 max-w-md mx-auto antialiased">
         
         {/* ENCABEZADO */}
         <header className="w-full flex justify-between items-center mb-3 pt-1 px-1 border-b border-[#E3DDD5]/40 pb-3">
@@ -1438,22 +1575,23 @@ export default function Home() {
             <button
               onClick={() => setShowStreakModal(true)}
               className="px-2.5 py-1 rounded-full bg-white border border-[#E3DDD5] text-[#1C1817] text-xs font-bold flex items-center gap-1 hover:border-[#997343] transition-all shadow-2xs"
-              title="Ver tu diamante del mes"
+              style={todayFirstCategory ? { borderColor: todayColorHex } : {}}
+              title="Ver tu racha actual y calendario"
             >
-              <span className="text-amber-500 animate-pulse">💎</span>
+              <span className="text-amber-500 animate-pulse">🔥</span>
               <span>{streak}d</span>
             </button>
 
             <button
               onClick={() => {
                 setCurrentCard(null);
-                setActiveTab('mission');
+                setActiveTab('voice');
               }}
               className={`text-[#8A827A] hover:underline text-xs ${
-                activeTab === 'mission' ? 'font-bold underline text-[#332E2B]' : ''
+                activeTab === 'voice' ? 'font-bold underline text-[#332E2B]' : ''
               }`}
             >
-              🇻🇪 Misión
+              💌 Tu Voz
             </button>
           </div>
         </header>
@@ -1740,38 +1878,36 @@ export default function Home() {
                           className="w-full text-xs p-2.5 pb-9 rounded-xl bg-[#FAF8F5] border border-[#E3DDD5] text-[#1C1817] placeholder-[#B5AEA7] focus:outline-none focus:border-[#997343] resize-none transition-all"
                         />
 
+                        {/* BOTÓN ACTUALIZAR NOTA AL LADO DEL MENSAJE/TEXTAREA */}
                         <div className="absolute bottom-2 right-2 flex items-center gap-1">
                           <button
                             onClick={handleSaveToDiary}
-                            className={`px-3 py-1 rounded-lg text-[10px] font-semibold transition-all shadow-xs flex items-center gap-1 ${
-                              isCardSaved
-                                ? 'bg-[#997343] text-white hover:bg-[#836237]'
-                                : 'bg-[#1C1817] text-white hover:bg-[#332E2B]'
-                            }`}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-[#1C1817] text-white hover:bg-[#332E2B] transition-all shadow-xs flex items-center gap-1"
                           >
-                            <span>💎</span>
-                            <span>{isCardSaved ? 'Actualizar en mis Tesoros' : 'Guardar Reflexión'}</span>
+                            <span>📝</span>
+                            <span>{isCardSaved ? 'Actualizar nota' : 'Añadir nota'}</span>
                           </button>
                         </div>
                       </div>
                     </div>
 
+                    {/* BOTONERA INFERIOR: GUARDAR A TESOROS AL LADO DE COMPARTIR */}
                     <div className="grid grid-cols-3 gap-1.5 w-full">
                       <button
                         onClick={handleSaveToDiary}
-                        className={`py-2 rounded-xl border text-[10px] font-medium flex items-center justify-center gap-1 transition-all ${
+                        className={`py-2.5 rounded-xl border text-[10px] font-bold flex items-center justify-center gap-1.5 transition-all ${
                           isCardSaved
-                            ? 'bg-[#997343]/15 border-[#997343] text-[#997343] font-bold'
-                            : 'bg-white border-[#E3DDD5] text-[#332E2B] hover:bg-[#FAF8F5]'
+                            ? 'bg-[#997343] text-white border-[#997343] shadow-xs'
+                            : 'bg-[#1C1817] text-white border-[#1C1817] hover:bg-[#332E2B]'
                         }`}
                       >
                         <span>💎</span>
-                        <span>{isCardSaved ? 'Guardado' : 'Guardar'}</span>
+                        <span>{isCardSaved ? 'Guardado a Tesoros' : '💎 Guardar a Tesoros'}</span>
                       </button>
 
                       <button
                         onClick={() => setShowFeedbackModal(true)}
-                        className="py-2 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
+                        className="py-2.5 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
                       >
                         <span>💬</span>
                         <span>Comentar</span>
@@ -1779,7 +1915,7 @@ export default function Home() {
 
                       <button
                         onClick={() => handleShare()}
-                        className="py-2 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
+                        className="py-2.5 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
                       >
                         <span>📤</span>
                         <span>Compartir</span>
@@ -1792,7 +1928,7 @@ export default function Home() {
 
                 <div className="w-full flex flex-col items-center gap-1 text-center px-1">
                   <p className="text-[10px] text-[#8A827A] font-light leading-relaxed max-w-[320px] mx-auto text-center">
-                    Tesoros del Autodescubrimiento nació después de los terremotos en Venezuela como parte de las donaciones que están pasando desapercibidas, tales como el apoyo emocional ❤️‍🩹. Cada caja física llega primero a quien más la necesita.
+                    Tesoros del Autodescubrimiento nació después de los terremotos en Venezuela como parte de las donaciones que están pasando desapercibidas, tales como el apoyo emocional ❤️‍falt. Cada caja física llega primero a quien más la necesita.
                   </p>
                   <a
                     href="https://gofundme.com"
@@ -1808,7 +1944,191 @@ export default function Home() {
           </>
         )}
 
-        {/* PESTAÑA: TESOROS (DIARIO) */}
+        {/* PESTAÑA: EL VIAJE */}
+        {activeTab === 'journey' && (
+          <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[75vh] animate-fadeIn">
+            <div className="w-full bg-gradient-to-b from-amber-50/90 via-white to-amber-50/40 border border-[#E3DDD5] rounded-3xl p-4 shadow-sm space-y-3">
+              <div className="flex justify-between items-center border-b border-[#E3DDD5]/60 pb-2">
+                <div>
+                  <h2 className="text-xl font-serif italic text-[#1C1817] font-bold">
+                    El Viaje 🎒
+                  </h2>
+                  <p className="text-[10px] font-mono text-[#997343] uppercase font-semibold">
+                    Ciclo Activo #{completedCycles.length + 1}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowStreakModal(true)}
+                    className="bg-white border border-[#E3DDD5] px-2.5 py-1 rounded-xl text-center shadow-2xs hover:border-[#997343] transition-all cursor-pointer group active:scale-95"
+                    title="Abrir ventana de racha y calendario"
+                  >
+                    <span className="text-[9px] font-mono text-[#8A827A] uppercase block group-hover:text-[#997343]">
+                      Racha 💎
+                    </span>
+                    <span className="text-xs font-bold text-[#1C1817]">🔥 {streak}d</span>
+                  </button>
+                  <button
+                    onClick={() => setShowStreakModal(true)}
+                    className="bg-white border border-[#E3DDD5] px-2.5 py-1 rounded-xl text-center shadow-2xs hover:border-[#997343] transition-all cursor-pointer group active:scale-95"
+                    title="Ver rachas"
+                  >
+                    <span className="text-[9px] font-mono text-[#8A827A] uppercase block group-hover:text-[#997343]">Hits</span>
+                    <span className="text-xs font-bold text-[#997343]">💎 {completedCycles.length}</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-1">
+                <div className="flex justify-between items-center text-[10px] font-mono font-bold text-[#8A827A]">
+                  <span>Progreso del Ciclo</span>
+                  <span className="text-[#997343]">{cycleDay}/31 días</span>
+                </div>
+                <div className="w-full bg-[#EAE5DF] h-2.5 rounded-full overflow-hidden p-0.5 border border-black/5">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-[#FAD02C] via-[#E1BEE7] to-[#81C784] transition-all duration-700"
+                    style={{ width: `${Math.max(3, (cycleDay / 31) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-4.5 shadow-sm space-y-3 relative overflow-hidden">
+              <div className="flex justify-between items-center border-b border-[#E3DDD5]/50 pb-2">
+                <span className="text-[10px] font-mono font-bold uppercase text-[#997343] bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200/60">
+                  {currentPhaseInfo.title}
+                </span>
+                <span className="text-[10px] font-mono font-bold text-[#1C1817] bg-[#EAE5DF]/60 px-2 py-0.5 rounded-md">
+                  DÍA {cycleDay} DE 31
+                </span>
+              </div>
+
+              <div className="py-1">
+                <p className="text-sm font-serif italic text-[#1C1817] leading-relaxed text-center font-medium">
+                  &ldquo;{currentMotivationalMessage}&rdquo;
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-[#E3DDD5]/50 flex items-center justify-between text-[10px] font-mono text-[#8A827A]">
+                <span>Porcentaje de Brillo:</span>
+                <span className="font-bold text-[#997343] text-xs">✨ {brightnessPercentage}%</span>
+              </div>
+            </div>
+
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-4.5 shadow-sm space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <div>
+                  <h3 className="text-xs font-serif font-bold text-[#1C1817] uppercase tracking-wider">
+                    Sección 1: Diamantes Pulidos
+                  </h3>
+                  <p className="text-[10px] text-[#8A827A]">
+                    Los Grandes Hits de tu Camino (31 Días)
+                  </p>
+                </div>
+                <span className="text-xs font-mono font-bold text-[#997343]">
+                  {cycleDay}/31
+                </span>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5 pt-1">
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((dayNum) => {
+                  const isUnlocked = dayNum <= cycleDay;
+                  return (
+                    <button
+                      key={dayNum}
+                      onClick={() => setSelectedGridDay(dayNum)}
+                      className={`aspect-square rounded-2xl flex flex-col items-center justify-center text-[11px] font-mono transition-all duration-300 border ${
+                        isUnlocked
+                          ? 'bg-amber-100/80 border-amber-300 text-[#1C1817] shadow-2xs hover:scale-110 active:scale-95'
+                          : 'bg-[#FAF8F5] border-[#E3DDD5]/80 text-[#B5AEA7] opacity-60'
+                      }`}
+                      title={`Día ${dayNum}`}
+                    >
+                      <span>{isUnlocked ? '💎' : '🔒'}</span>
+                      <span className="text-[8px] font-bold mt-0.5">{dayNum}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-4.5 shadow-sm space-y-3">
+              <div className="flex justify-between items-center px-1">
+                <div>
+                  <h3 className="text-xs font-serif font-bold text-[#1C1817] uppercase tracking-wider">
+                    Sección 2: Diamantes de Cartas
+                  </h3>
+                  <p className="text-[10px] text-[#8A827A]">
+                    Colección Diaria de Lecturas y Notas
+                  </p>
+                </div>
+                <span className="text-xs font-mono font-bold text-[#1C1817]">
+                  {diary.length} guardados
+                </span>
+              </div>
+
+              {diary.length === 0 ? (
+                <div className="p-4 text-center text-[11px] text-[#8A827A] italic bg-[#FAF8F5] rounded-2xl border border-dashed border-[#E3DDD5]">
+                  Aún no has guardado notas o lecturas de cartas. ¡Gira una carta e intégrala aquí!
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {diary.map((entry) => (
+                    <div
+                      key={entry.id}
+                      onClick={() => handleOpenFromDiary(entry)}
+                      className="p-3 rounded-2xl border border-black/5 flex flex-col justify-between space-y-1.5 cursor-pointer hover:scale-[1.02] transition-transform shadow-2xs"
+                      style={{ backgroundColor: getCardColor(entry.card['Categoría']) }}
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs">💎</span>
+                        <span className="text-[9px] font-mono font-bold text-[#1C1817]/70 uppercase">
+                          {entry.date}
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-serif italic font-bold text-[#1C1817] line-clamp-2 leading-tight">
+                        &ldquo;{cleanText(entry.card['Anverso (Gancho Científico)'] || entry.card['Modelo (Intención)'])}&rdquo;
+                      </p>
+                      {entry.note && (
+                        <span className="text-[8px] font-mono font-bold text-[#997343] bg-white/70 px-1.5 py-0.5 rounded-full self-start">
+                          ✍️ Con nota
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {completedCycles.length > 0 && (
+              <div className="w-full bg-[#FAF8F5] border border-[#E3DDD5] rounded-3xl p-4.5 space-y-2.5">
+                <span className="text-[10px] font-mono font-bold uppercase text-[#997343] tracking-wider block">
+                  🎒 Mochila de Mis Viajes ({completedCycles.length})
+                </span>
+                <div className="space-y-2">
+                  {completedCycles.map((record) => (
+                    <div
+                      key={record.id}
+                      className="bg-white border border-[#E3DDD5] rounded-2xl p-3 flex justify-between items-center text-xs shadow-2xs"
+                    >
+                      <div className="space-y-0.5">
+                        <span className="font-serif italic font-bold text-[#1C1817] block">
+                          ✨ {record.name}
+                        </span>
+                        <span className="text-[9px] font-mono text-[#8A827A]">
+                          Completado: {record.dateCompleted}
+                        </span>
+                      </div>
+                      <span className="text-base">🏆</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PESTAÑA: TESOROS */}
         {activeTab === 'diary' && (
           <div className="w-full flex-1 overflow-y-auto space-y-3.5 my-2 pr-1 max-h-[75vh] animate-fadeIn">
             <div className="flex justify-between items-center mb-1">
@@ -1835,7 +2155,7 @@ export default function Home() {
                   Aún no has guardado tesoros en tu colección.
                 </p>
                 <p>
-                  Gira una carta y presiona <strong>&quot;Guardar&quot;</strong> para conservarla aquí.
+                  Gira una carta y presiona <strong>&quot;💎 Guardar a Tesoros&quot;</strong> para conservarla aquí.
                 </p>
               </div>
             ) : (
@@ -1918,11 +2238,11 @@ export default function Home() {
           </div>
         )}
 
-        {/* PESTAÑA: AHORA! */}
+        {/* PESTAÑA: AHORA */}
         {activeTab === 'thermometer' && (
           <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[75vh] animate-fadeIn">
             <div className="flex justify-between items-start mb-1">
-              <div className="space-y-1.5 pr-2">
+              <div className="space-y-1.5 pr-2 w-full">
                 <div className="flex items-center gap-2">
                   <h2 className="text-2xl font-serif italic text-[#1C1817] font-bold">
                     AQUÍ Y AHORA...
@@ -1932,91 +2252,94 @@ export default function Home() {
                     EN VIVO
                   </span>
                 </div>
+                
+                {/* BANNER DINÁMICO DE LA NECESIDAD MÁS SELECCIONADA */}
+                <div 
+                  className="w-full rounded-2xl p-4 my-2 border shadow-sm transition-all animate-fadeIn"
+                  style={{
+                    backgroundColor: `${mostNeeded.color}30`,
+                    borderColor: mostNeeded.color,
+                  }}
+                >
+                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-[#997343] block">
+                    🔥 NECESIDAD PREDOMINANTE AHORA mismo
+                  </span>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-lg font-serif font-bold text-[#1C1817]">
+                      {mostNeeded.label}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-[#1C1817] bg-white/80 px-2.5 py-1 rounded-full border border-black/5">
+                      {mostNeeded.percentage}% de selecciones
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-[#332E2B] leading-snug mt-1.5 italic font-serif">
+                    &ldquo;La comunidad está buscando mayoritariamente {CATEGORY_ACTIONS[mostNeeded.label] || 'hacer una pausa'} hoy.&rdquo;
+                  </p>
+                </div>
+
                 <p className="text-xs font-serif italic text-[#1C1817] font-semibold leading-tight">
                   En este preciso segundo, miles de personas están haciendo una pausa contigo.
                 </p>
-                <p className="text-[11px] text-[#8A827A] leading-relaxed italic">
-                  &ldquo;¿Pensaste que eras la única persona necesitando{' '}
-                  <strong className="font-bold text-[#1C1817] not-italic">
-                    {CATEGORY_ACTIONS[mostNeeded.label] || 'hacer una pausa'}
-                  </strong>{' '}
-                  ahora mismo? Mira a tu alrededor...&rdquo;
-                </p>
               </div>
-              <button
-                onClick={handleGoHome}
-                className="text-xs text-[#8A827A] hover:text-[#1C1817] font-semibold bg-white border border-[#E3DDD5] px-3 py-1.5 rounded-xl shadow-2xs shrink-0"
-              >
-                ← Volver
-              </button>
             </div>
 
-            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
-                  <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 36 36">
-                    <path
-                      className="text-[#EAE5DF]"
-                      strokeWidth="3.8"
-                      stroke="currentColor"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      strokeWidth="3.8"
-                      strokeDasharray={`${mostNeeded.percentage}, 100`}
-                      strokeLinecap="round"
-                      stroke={mostNeeded.color}
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <span className="absolute text-xs font-bold text-[#1C1817]">
-                    {mostNeeded.total > 0 ? `${mostNeeded.percentage}%` : '0%'}
-                  </span>
-                </div>
-                <div className="text-left space-y-1">
-                  <p className="text-[9px] font-mono font-bold uppercase tracking-widest text-[#997343]">
-                    ✦ LO QUE OCURRE EN ESTE SEGUNDO
-                  </p>
-                  {mostNeeded.total > 0 ? (
-                    <p className="text-sm font-serif italic text-[#2C2523] leading-snug">
-                      En este instante, la necesidad que más resuena es{' '}
-                      <strong className="font-bold text-[#1C1817] uppercase">
-                        {mostNeeded.label}
-                      </strong>.
-                    </p>
-                  ) : (
-                    <p className="text-sm font-serif italic text-[#2C2523] leading-snug">
-                      Aún no hay tiradas registradas hoy. ¡Sé la primera persona en marcar el ritmo!
-                    </p>
-                  )}
-                  <p className="text-[11px] text-[#8A827A] leading-tight">
-                    No estás en solitario: hay personas en distintas esquinas del mundo soltando el aire al mismo tiempo que tú.
-                  </p>
-                </div>
+            {/* SECCIÓN 1: LA CIENCIA DE SENTIRNOS AHORA */}
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 space-y-3 shadow-sm text-left">
+              <div className="flex items-center gap-2 text-xl border-b border-[#E3DDD5]/50 pb-2">
+                <span>🧠</span>
+                <h3 className="text-sm font-serif font-bold text-[#1C1817]">
+                  La ciencia de sentirnos AHORA
+                </h3>
+              </div>
+              <p className="text-xs text-[#332E2B] leading-relaxed">
+                Tu sistema nervioso está diseñado para autorregularse mediante la co-regulación. Cuando vengas aquí y ahora, descubrirás que tu cansancio o tu ansiedad son el reflejo de muchos otros. Tu cerebro percibirá en tiempo real que no estás solo/a en la necesidad de parar y la sensación de amenaza disminuirá. En este segundo, el cortisol baja y recuperas el tesoro más grande: tu propia calma.
+              </p>
+            </div>
+
+            {/* SECCIÓN 2: A TI */}
+            <div className="w-full bg-amber-50/60 border border-amber-200/80 rounded-3xl p-5 space-y-3 shadow-sm text-center">
+              <span className="text-xs font-mono font-bold text-[#997343] uppercase tracking-widest block">
+                ✦ A ti ✦
+              </span>
+              <p className="text-xs text-[#332E2B] leading-relaxed">
+                Cada carta, cada respiración y cada pequeño ejercicio está inspirado en herramientas respaldadas por la psicología y la ciencia del bienestar, pero su verdadero propósito no es cambiar quién eres.
+              </p>
+              <p className="text-xs font-serif italic text-[#1C1817] font-medium leading-relaxed">
+                Es ayudarte a recordar el valor que ya habita en ti.
+              </p>
+              <p className="text-xs text-[#332E2B] leading-relaxed">
+                Y, cuando miras el reflejo de toda una comunidad, quizá descubras algo importante:
+              </p>
+              <blockquote className="text-xs font-serif italic font-bold text-[#997343] pt-1">
+                “No eres la única persona intentando volver a encontrarse.”
+              </blockquote>
+            </div>
+
+            {/* SECCIÓN 3: DISTRIBUCIÓN Y TERMÓMETRO */}
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-4.5 space-y-3 shadow-sm">
+              <div className="flex justify-between items-center border-b border-[#E3DDD5]/50 pb-2">
+                <span className="text-[10px] font-mono font-bold uppercase text-[#997343]">
+                  ✦ DISTRIBUCIÓN EN TIEMPO REAL
+                </span>
+                <span className="text-[10px] font-mono font-bold text-[#1C1817]">
+                  {mostNeeded.total} pausas registradas
+                </span>
               </div>
 
-              <div className="space-y-2.5 pt-3 border-t border-[#E3DDD5]/60">
-                <p className="text-[10px] font-mono text-[#8A827A] uppercase tracking-wider font-semibold">
-                  ¿Qué estamos buscando en este preciso instante?
-                </p>
-                {mostNeeded.sorted.map(([catKey, count]) => {
-                  const catObj = CATEGORIES.find((c) => c.key === catKey);
+              <div className="space-y-2.5">
+                {CATEGORIES.map((cat) => {
+                  const count = dailyStats[cat.key] || 0;
                   const pct = mostNeeded.total > 0 ? Math.round((count / mostNeeded.total) * 100) : 0;
                   return (
-                    <div key={catKey} className="space-y-1">
-                      <div className="flex justify-between text-xs font-medium">
-                        <span className="text-[#1C1817] font-semibold">{catKey}</span>
-                        <span className="text-[#8A827A]">{pct}% ({count})</span>
+                    <div key={cat.key} className="space-y-1">
+                      <div className="flex justify-between text-xs font-semibold text-[#1C1817]">
+                        <span>{cat.label}</span>
+                        <span className="font-mono text-[10px] text-[#8A827A]">{pct}% ({count})</span>
                       </div>
-                      <div className="w-full bg-[#EAE5DF] h-2 rounded-full overflow-hidden">
+                      <div className="w-full bg-[#FAF8F5] h-2.5 rounded-full overflow-hidden border border-black/5 p-0.5">
                         <div
-                          className="h-full transition-all duration-500"
-                          style={{
-                            width: `${pct}%`,
-                            backgroundColor: catObj ? catObj.color : '#997343',
-                          }}
+                          className="h-full transition-all duration-500 rounded-full"
+                          style={{ backgroundColor: cat.color, width: `${pct}%` }}
                         />
                       </div>
                     </div>
@@ -2025,155 +2348,226 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-[#997343]/10 border border-[#997343]/20 rounded-3xl p-4.5 space-y-2 text-center">
-              <div className="flex items-center gap-1.5 text-[#997343]">
-                <span className="text-xs">🧠</span>
-                <span className="text-[13px] font-mono font-bold uppercase tracking-wider">
-                  La ciencia de sentirnos AHORA
-                </span>
+            {/* SECCIÓN 4: AHORA! EN EL PLANETA */}
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 space-y-2 shadow-sm text-left">
+              <div className="flex items-center gap-2 text-xl border-b border-[#E3DDD5]/50 pb-2">
+                <span>🌍</span>
+                <h3 className="text-sm font-serif font-bold text-[#1C1817]">
+                  AHORA! en el planeta
+                </h3>
               </div>
-              <p className="text-xs text-[#2C2523] leading-relaxed text-left font-light"> 
-                Tu sistema nervioso está diseñado para autorregularse mediante la co-regulación. Cuando vengas aquí y ahora, descubrirás que tu cansancio o tu ansiedad son el reflejo de muchos otros. Tu cerebro percibirá en tiempo real que no estás solo/a en la necesidad de parar y la sensación de amenaza disminuirá. En este segundo, el cortisol baja y recuperas el tesoro más grande: tu propia calma.
+              <p className="text-xs text-[#332E2B] leading-relaxed pt-1">
+                El respiro no tiene fronteras. Próximamente podrás ver desde qué países y ciudades se están sumando a esta misma pausa contigo.
               </p>
-            </div>
-            
-            <div className="bg-[#F6EFDF] border border-[#D8C7A3] rounded-3xl p-5 space-y-3 text-left shadow-xs relative overflow-hidden">
-              <div className="text-center pb-1 border-b border-[#D8C7A3]/50">
-                <span className="text-xs font-serif italic font-bold text-[#7A5B2B] uppercase tracking-widest">
-                  ✦ A ti ✦
-                </span>
-              </div>
-              
-              <p className="text-xs font-serif italic text-[#382C1E] leading-relaxed">
-                Cada carta, cada respiración y cada pequeño ejercicio está inspirado en herramientas respaldadas por la psicología y la ciencia del bienestar, pero su verdadero propósito no es cambiar quién eres.
-              </p>
-              
-              <p className="text-xs font-serif italic text-[#382C1E] leading-relaxed">
-                Es ayudarte a recordar el valor que ya habita en ti.
-              </p>
-              
-              <p className="text-xs font-serif italic text-[#382C1E] leading-relaxed">
-                Y, cuando miras el reflejo de toda una comunidad, quizá descubras algo importante:
-              </p>
-              
-              <p className="text-xs font-serif italic font-bold text-[#7A5B2B] text-center pt-1 leading-relaxed">
-                &ldquo;No eres la única persona intentando volver a encontrarse.&rdquo;
-              </p>
-            </div>
-
-            <div className="bg-white/80 border border-[#E3DDD5] rounded-2xl p-3.5 flex items-center justify-between text-left shadow-2xs">
-              <div className="space-y-0.5 pr-2">
-                <p className="text-[10px] font-bold text-[#1C1817] uppercase tracking-wider flex items-center gap-1">
-                  <span>🌍</span> AHORA! en el planeta
-                </p>
-                <p className="text-[11px] text-[#8A827A] leading-tight">
-                  El respiro no tiene fronteras. Próximamente podrás ver desde qué países y ciudades se están sumando a esta misma pausa contigo.
-                </p>
-              </div>
-              <span className="text-[10px] font-mono bg-amber-100 text-[#997343] font-bold px-2.5 py-1 rounded-full shrink-0">
-                Pronto
-              </span>
             </div>
           </div>
         )}
 
-        {/* PESTAÑA: MISIÓN VENEZUELA */}
-        {activeTab === 'mission' && (
-          <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[72vh] animate-fadeIn">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="text-lg font-serif italic text-[#1C1817]">
-                Nuestra Misión 🇻🇪
-              </h2>
-              <button
-                onClick={handleGoHome}
-                className="text-xs text-[#8A827A] hover:text-[#1C1817]"
-              >
-                ← Volver
-              </button>
-            </div>
-
-            <div className="bg-white border border-[#E3DDD5] rounded-3xl p-5 shadow-sm space-y-4 text-xs text-[#332E2B] leading-relaxed">
-              <div className="text-center space-y-1">
-                <div className="text-3xl">💎 ❤️‍🩹</div>
-                <h3 className="text-base font-serif italic font-bold text-[#1C1817]">
-                  Tesoros del Autodescubrimiento
-                </h3>
+        {/* PESTAÑA REFACTORIZADA: TU VOZ (MISIÓN & COMUNIDAD) */}
+        {activeTab === 'voice' && (
+          <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[75vh] animate-fadeIn text-left">
+            
+            {/* CARD 1: CABECERA Y MISIÓN */}
+            <div className="bg-gradient-to-b from-amber-50/80 via-white to-white border border-[#E3DDD5] rounded-3xl p-5 space-y-3.5 shadow-xs relative overflow-hidden">
+              <div className="flex justify-between items-center border-b border-[#E3DDD5]/60 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🇻🇪</span>
+                  <span className="text-[10px] font-mono font-bold text-[#997343] uppercase tracking-wider">
+                    ✦ MISIÓN SOCIAL ✦
+                  </span>
+                </div>
+                <span className="text-[9px] font-mono font-bold bg-[#1C1817] text-white px-2 py-0.5 rounded-full">
+                  Impacto Vivo
+                </span>
               </div>
 
-              <p>
-                Este proyecto nació después de los terremotos e imprevistos en Venezuela como una respuesta concreta a una necesidad que suele pasar desapercibida: el <strong>apoyo emocional y la salud mental</strong> en momentos de crisis.
+              <div>
+                <h2 className="text-xl font-serif font-bold text-[#1C1817]">
+                  Tesoros del Autodescubrimiento
+                </h2>
+                <p className="text-xs font-serif italic text-[#8A827A] mt-0.5">
+                  Salud emocional y reconstrucción interior desde la empatía.
+                </p>
+              </div>
+
+              <p className="text-xs text-[#332E2B] leading-relaxed">
+                Este proyecto nació tras los terremotos e inestabilidad en Venezuela para atender la salud emocional, un pilar fundamental que suele quedar en segundo plano. Cada caja física producida financia directamente la entrega gratuita de refugios emocionales y dinámicas de introspección a quienes más lo necesitan.
               </p>
 
-              <div className="bg-[#997343]/10 rounded-2xl p-4 border border-[#997343]/20 space-y-2">
-                <p className="font-serif italic font-semibold text-[#997343]">
-                  &ldquo;Cada caja física llega primero a quien más la necesita.&rdquo;
-                </p>
-                <p className="text-[11px] text-[#2C2523]">
-                  Por cada kit o carta digital interactiva, financiamos el envío de cajas físicas de autodescubrimiento a comunidades vulnerables y centros de apoyo en Venezuela.
-                </p>
-              </div>
+              {/* BOTONERA DE ACCIÓN SOCIAL */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  onClick={() => setShowFeedbackModal(true)}
+                  className="py-2.5 px-3 rounded-2xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                >
+                  <span>💬</span>
+                  <span>Déjanos tu Voz</span>
+                </button>
 
-              <div className="text-center pt-2">
                 <a
                   href="https://gofundme.com"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-block py-3 px-6 rounded-2xl bg-[#997343] text-white font-serif italic font-semibold hover:bg-[#836237] shadow-md transition-all text-xs"
+                  className="py-2.5 px-3 rounded-2xl bg-amber-100/80 border border-amber-300 text-[#997343] text-xs font-serif italic font-bold hover:bg-amber-200/80 transition-all flex items-center justify-center gap-1.5 text-center shadow-2xs"
                 >
-                  Apoyar en GoFundMe →
+                  <span>❤️‍🩹</span>
+                  <span>Apoyar GoFundMe</span>
                 </a>
               </div>
             </div>
+
+            {/* CARD 2: PUBLICAR TU PROPIA VOZ */}
+            <div className="bg-white border border-[#E3DDD5] rounded-3xl p-4.5 space-y-3 shadow-xs">
+              <div className="flex justify-between items-center border-b border-[#E3DDD5]/50 pb-2">
+                <span className="text-[10px] font-mono font-bold uppercase text-[#997343] flex items-center gap-1">
+                  <span>✍️</span> COMPARTE TU REFLEXIÓN CON LA COMUNIDAD
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <textarea
+                  value={voiceInput}
+                  onChange={(e) => setVoiceInput(e.target.value)}
+                  placeholder="Escribe cómo te ha ayudado esta app o envía un mensaje de aliento a alguien que lo necesite..."
+                  rows={3}
+                  className="w-full text-xs p-3 rounded-2xl bg-[#FAF8F5] border border-[#E3DDD5] text-[#1C1817] placeholder-[#B5AEA7] focus:outline-none focus:border-[#997343] resize-none"
+                />
+
+                {voiceSubmitted ? (
+                  <div className="p-2.5 bg-emerald-50 text-emerald-700 text-xs font-semibold text-center rounded-xl border border-emerald-200 animate-fadeIn">
+                    ✨ ¡Tu mensaje ha sido compartido en el Muro de Voces!
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleVoiceSubmit}
+                    disabled={!voiceInput.trim()}
+                    className="w-full py-2.5 bg-[#997343] text-white text-xs font-semibold rounded-xl hover:bg-[#836237] disabled:opacity-40 transition-all shadow-xs flex items-center justify-center gap-1.5"
+                  >
+                    <span>📤</span>
+                    <span>Publicar en la Comunidad</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* CARD 3: MURO DE VOCES DE LA COMUNIDAD */}
+            <div className="space-y-2.5 pt-1">
+              <div className="flex justify-between items-center px-1">
+                <h3 className="text-xs font-serif font-bold text-[#1C1817] uppercase tracking-wider flex items-center gap-1.5">
+                  <span>🗣️</span> Muro de Voces Comunidad
+                </h3>
+                <span className="text-[10px] font-mono text-[#8A827A]">
+                  {communityVoices.length} testimonios
+                </span>
+              </div>
+
+              <div className="space-y-2.5">
+                {communityVoices.map((v) => (
+                  <div
+                    key={v.id}
+                    className="bg-white border border-[#E3DDD5] rounded-2xl p-4 space-y-2 shadow-2xs hover:border-[#997343]/40 transition-all"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-6 h-6 rounded-full bg-amber-100 text-[#997343] flex items-center justify-center text-[10px] font-bold">
+                          {v.author.charAt(0)}
+                        </span>
+                        <div>
+                          <span className="text-xs font-bold text-[#1C1817] block leading-none">
+                            {v.author}
+                          </span>
+                          <span className="text-[9px] font-mono text-[#8A827A]">
+                            {v.location}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <span className="text-[9px] font-bold bg-[#FAF8F5] text-[#997343] border border-[#E3DDD5] px-2 py-0.5 rounded-full">
+                          {v.category}
+                        </span>
+                        <span className="text-[9px] font-mono text-[#B5AEA7]">
+                          {v.date}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-[#332E2B] italic font-serif leading-relaxed">
+                      &ldquo;{v.text}&rdquo;
+                    </p>
+
+                    <div className="pt-1 flex items-center gap-1 text-[9px] text-[#997343] font-bold">
+                      <span>{v.feeling}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* BOTÓN REGRESO */}
+            <div className="pt-2">
+              <button
+                onClick={handleGoHome}
+                className="w-full py-3 rounded-2xl bg-white border border-[#E3DDD5] text-[#332E2B] text-xs font-semibold hover:bg-gray-50 transition-all flex items-center justify-center gap-1.5 shadow-2xs"
+              >
+                <span>☀️</span>
+                <span>Volver a descubrir cartas</span>
+              </button>
+            </div>
+
           </div>
         )}
 
-        {/* NAVEGACIÓN INFERIOR (TAB BAR) */}
-        <nav className="fixed bottom-3 left-1/2 transform -translate-x-1/2 w-full max-w-[340px] bg-white/90 backdrop-blur-md border border-[#E3DDD5] rounded-full shadow-lg p-1.5 flex items-center justify-around z-40">
+        {/* BARRA DE NAVEGACIÓN INFERIOR */}
+        <nav className="fixed bottom-0 left-0 right-0 bg-[#FAF8F5]/95 backdrop-blur-md border-t border-[#E3DDD5] py-2 px-3 z-40 max-w-md mx-auto flex justify-around items-center">
           <button
             onClick={() => setActiveTab('draw')}
-            className={`flex-1 py-2 text-xs font-serif font-semibold rounded-full transition-all text-center ${
-              activeTab === 'draw'
-                ? 'bg-[#1C1817] text-white shadow-sm'
-                : 'text-[#8A827A] hover:text-[#1C1817]'
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${
+              activeTab === 'draw' ? 'text-[#1C1817] font-bold' : 'text-[#8A827A] hover:text-[#1C1817]'
             }`}
           >
-            ☀️ Hoy
+            <span className="text-base">☀️</span>
+            <span>Hoy</span>
           </button>
 
-          <span className="text-[#E3DDD5] text-xs">|</span>
-
           <button
-            onClick={() => {
-              setCurrentCard(null);
-              setActiveTab('diary');
-            }}
-            className={`flex-1 py-2 text-xs font-serif font-semibold rounded-full transition-all text-center flex items-center justify-center gap-1 ${
-              activeTab === 'diary'
-                ? 'bg-[#1C1817] text-white shadow-sm'
-                : 'text-[#8A827A] hover:text-[#1C1817]'
-            } ${isDiarySparkling ? 'animate-pulse text-[#D9A24A]' : ''}`}
-          >
-            <span>💎 Tesoros</span>
-            {diary.length > 0 && (
-              <span className="text-[10px] opacity-75">({diary.length})</span>
-            )}
-          </button>
-
-          <span className="text-[#E3DDD5] text-xs">|</span>
-
-          <button
-            onClick={() => {
-              setCurrentCard(null);
-              setActiveTab('thermometer');
-            }}
-            className={`flex-1 py-2 text-xs font-serif font-semibold rounded-full transition-all text-center flex items-center justify-center gap-1 ${
-              activeTab === 'thermometer'
-                ? 'bg-[#1C1817] text-white shadow-sm'
-                : 'text-[#8A827A] hover:text-[#1C1817]'
+            onClick={() => setActiveTab('journey')}
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${
+              activeTab === 'journey' ? 'text-[#1C1817] font-bold' : 'text-[#8A827A] hover:text-[#1C1817]'
             }`}
           >
-            <span className="" />
-            <span>🌎AHORA!</span>
+            <span className="text-base">🎒</span>
+            <span>El Viaje</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('diary')}
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${
+              activeTab === 'diary' ? 'text-[#1C1817] font-bold' : 'text-[#8A827A] hover:text-[#1C1817]'
+            }`}
+          >
+            <span className="text-base">💰</span>
+            <span>Tesoros</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('thermometer')}
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${
+              activeTab === 'thermometer' ? 'text-[#1C1817] font-bold' : 'text-[#8A827A] hover:text-[#1C1817]'
+            }`}
+          >
+            <span className="text-base">🌎</span>
+            <span>Ahora</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('voice')}
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-semibold transition-colors ${
+              activeTab === 'voice' ? 'text-[#1C1817] font-bold' : 'text-[#8A827A] hover:text-[#1C1817]'
+            }`}
+          >
+            <span className="text-base">🗣️</span>
+            <span>Tu Voz</span>
           </button>
         </nav>
       </main>
