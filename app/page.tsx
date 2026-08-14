@@ -221,6 +221,7 @@ export default function Home() {
   const [roadmapSubmitted, setRoadmapSubmitted] = useState<boolean>(false);
 
   const [showFeedbackModal, setShowFeedbackModal] = useState<boolean>(false);
+  const [showMissionModal, setShowMissionModal] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
   const [feedbackSent, setFeedbackSent] = useState<boolean>(false);
 
@@ -369,6 +370,24 @@ export default function Home() {
     if (error) {
       console.error('Error iniciando sesión con Google:', error);
       setAuthError(error.message || 'No pudimos iniciar sesión con Google.');
+      setAuthActionLoading(false);
+    }
+  };
+
+  const handleAnonymousSignIn = async () => {
+    if (!supabase) {
+      setAuthError('Supabase no está configurado todavía.');
+      return;
+    }
+
+    setAuthError('');
+    setAuthActionLoading(true);
+
+    const { error } = await supabase.auth.signInAnonymously();
+
+    if (error) {
+      console.error('Error entrando sin registro:', error);
+      setAuthError(error.message || 'No pudimos crear tu espacio de prueba.');
       setAuthActionLoading(false);
     }
   };
@@ -905,6 +924,24 @@ export default function Home() {
             <span>{authActionLoading ? 'Conectando...' : 'Continuar con Google'}</span>
           </button>
 
+          <div className="flex items-center gap-3 my-4">
+            <div className="h-px flex-1 bg-[#E3DDD5]" />
+            <span className="text-[10px] text-[#B5AEA7] uppercase tracking-wider">o</span>
+            <div className="h-px flex-1 bg-[#E3DDD5]" />
+          </div>
+
+          <button
+            onClick={handleAnonymousSignIn}
+            disabled={authActionLoading}
+            className="w-full py-3.5 rounded-2xl bg-white border border-[#D8D0C8] text-[#332E2B] text-sm font-semibold hover:bg-[#FAF8F5] hover:border-[#997343] disabled:opacity-50 transition-all shadow-sm active:scale-[0.98]"
+          >
+            <span>{authActionLoading ? 'Preparando tu espacio...' : 'Entrar sin registrarme'}</span>
+          </button>
+
+          <p className="text-[10px] text-[#B5AEA7] leading-relaxed mt-3">
+            Puedes empezar sin crear una cuenta. Más adelante podrás registrarte para conservar tu recorrido.
+          </p>
+
           <p className="text-[10px] text-[#B5AEA7] leading-relaxed mt-4">
             Tu cuenta permite guardar tu recorrido y asociar tus respuestas a tu espacio personal.
           </p>
@@ -984,6 +1021,102 @@ export default function Home() {
           <p className="text-xs font-serif italic text-[#997343] font-semibold tracking-wider">
             Revelando tu diamante...
           </p>
+        </div>
+      )}
+
+      {/* MODAL MISIÓN — PROPÓSITO SOCIAL Y DOS CAMINOS */}
+      {showMissionModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4 animate-fadeIn"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowMissionModal(false);
+          }}
+        >
+          <div className="bg-[#FAF8F5] w-full max-w-sm rounded-3xl p-6 border border-[#E3DDD5] shadow-2xl flex flex-col items-center text-left space-y-4 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowMissionModal(false)}
+              className="absolute top-3 right-4 text-[#8A827A] hover:text-[#1C1817] text-lg font-bold p-1"
+              aria-label="Cerrar misión"
+            >
+              ✕
+            </button>
+
+            <div className="w-full text-center pt-1">
+              <div className="text-4xl mb-2">🇻🇪</div>
+              <span className="text-[10px] font-mono tracking-widest text-[#997343] uppercase font-bold">
+                ✦ MISIÓN ✦
+              </span>
+              <h2 className="text-2xl font-serif font-bold text-[#1C1817] mt-1">
+                Los Tesoros también pueden llegar más lejos.
+              </h2>
+            </div>
+
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-2xl p-4 space-y-3 shadow-xs">
+              <div>
+                <h3 className="text-xs font-serif font-bold text-[#1C1817]">
+                  ¿Por qué existe esta misión?
+                </h3>
+                <p className="text-xs text-[#332E2B] leading-relaxed mt-1.5">
+                  Tesoros del Autodescubrimiento nació con una intención que va más allá del autoconocimiento: convertir una experiencia de bienestar personal en una oportunidad para acompañar emocionalmente a otras personas que lo necesitan.
+                </p>
+              </div>
+
+              <div className="border-t border-[#E3DDD5]/60 pt-3">
+                <h3 className="text-xs font-serif font-bold text-[#1C1817]">
+                  ¿Qué queremos hacer?
+                </h3>
+                <p className="text-xs text-[#332E2B] leading-relaxed mt-1.5">
+                  Llevar herramientas de pausa, reflexión y autodescubrimiento a personas que atraviesan momentos difíciles, empezando por Venezuela.
+                </p>
+              </div>
+
+              <p className="text-xs font-serif italic text-[#997343] leading-relaxed pt-1">
+                Porque reconstruir también significa poder volver a sentirse acompañado. ❤️‍🩹
+              </p>
+            </div>
+
+            <div className="w-full space-y-2.5">
+              <p className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8A827A] px-1">
+                ¿Cómo puedes formar parte?
+              </p>
+
+              <a
+                href="https://gofundme.com"
+                target="_blank"
+                rel="noreferrer"
+                className="w-full py-3 rounded-2xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all flex items-center justify-center gap-2 shadow-xs"
+              >
+                <span>❤️‍🩹</span>
+                <span>Apoyar la misión</span>
+              </a>
+              <p className="text-[10px] text-[#8A827A] text-center -mt-1">
+                Contribuir mediante GoFundMe.
+              </p>
+
+              <button
+                type="button"
+                disabled
+                className="w-full py-3 rounded-2xl bg-white border border-[#E3DDD5] text-[#8A827A] text-xs font-semibold flex items-center justify-center gap-2 opacity-80 cursor-not-allowed"
+                title="La reserva de la caja física estará disponible próximamente."
+              >
+                <span>💎</span>
+                <span>Reservar mi caja</span>
+                <span className="text-[9px] bg-[#FAF8F5] border border-[#E3DDD5] px-1.5 py-0.5 rounded-full">
+                  Próximamente
+                </span>
+              </button>
+              <p className="text-[10px] text-[#8A827A] text-center -mt-1">
+                Acceder a la futura reserva de la caja física.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setShowMissionModal(false)}
+              className="w-full py-1 text-xs text-[#8A827A] hover:text-[#1C1817]"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
 
@@ -1751,15 +1884,10 @@ export default function Home() {
             </button>
 
             <button
-              onClick={() => {
-                setCurrentCard(null);
-                setActiveTab('voice');
-              }}
-              className={`text-[#8A827A] hover:underline text-xs ${
-                activeTab === 'voice' ? 'font-bold underline text-[#332E2B]' : ''
-              }`}
+              onClick={() => setShowMissionModal(true)}
+              className="text-[#8A827A] hover:underline text-xs"
             >
-              💌 Tu Voz
+              🇻🇪 Misión
             </button>
 
             <button
@@ -2564,34 +2692,34 @@ export default function Home() {
         {activeTab === 'voice' && (
           <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[75vh] animate-fadeIn text-left">
             
-            {/* CARD 1: CABECERA Y MISIÓN */}
+            {/* CARD 1: TU VOZ + ACCIONES */}
             <div className="bg-gradient-to-b from-amber-50/80 via-white to-white border border-[#E3DDD5] rounded-3xl p-5 space-y-3.5 shadow-xs relative overflow-hidden">
               <div className="flex justify-between items-center border-b border-[#E3DDD5]/60 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">🇻🇪</span>
+                  <span className="text-xl">💌</span>
                   <span className="text-[10px] font-mono font-bold text-[#997343] uppercase tracking-wider">
-                    ✦ MISIÓN SOCIAL ✦
+                    ✦ TU VOZ ✦
                   </span>
                 </div>
                 <span className="text-[9px] font-mono font-bold bg-[#1C1817] text-white px-2 py-0.5 rounded-full">
-                  Impacto Vivo
+                  Comunidad
                 </span>
               </div>
 
               <div>
                 <h2 className="text-xl font-serif font-bold text-[#1C1817]">
-                  Tesoros del Autodescubrimiento
+                  Tu voz también es un tesoro.
                 </h2>
                 <p className="text-xs font-serif italic text-[#8A827A] mt-0.5">
-                  Salud emocional y reconstrucción interior desde la empatía.
+                  Comparte lo que esta experiencia despierta en ti.
                 </p>
               </div>
 
               <p className="text-xs text-[#332E2B] leading-relaxed">
-                Este proyecto nació tras los terremotos e inestabilidad en Venezuela para atender la salud emocional, un pilar fundamental que suele quedar en segundo plano. Cada caja física producida financia directamente la entrega gratuita de refugios emocionales y dinámicas de introspección a quienes más lo necesitan.
+                Lo que vives aquí puede acompañar a alguien más. Comparte tu experiencia, deja unas palabras de aliento o descubre las voces de esta comunidad.
               </p>
 
-              {/* BOTONERA DE ACCIÓN SOCIAL */}
+              {/* BOTONERA DE ACCIÓN SOCIAL — SE MANTIENE EL FLUJO EXISTENTE */}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   onClick={() => setShowFeedbackModal(true)}
@@ -2601,15 +2729,13 @@ export default function Home() {
                   <span>Déjanos tu Voz</span>
                 </button>
 
-                <a
-                  href="https://gofundme.com"
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  onClick={() => setShowMissionModal(true)}
                   className="py-2.5 px-3 rounded-2xl bg-amber-100/80 border border-amber-300 text-[#997343] text-xs font-serif italic font-bold hover:bg-amber-200/80 transition-all flex items-center justify-center gap-1.5 text-center shadow-2xs"
                 >
                   <span>❤️‍🩹</span>
                   <span>Apoyar GoFundMe</span>
-                </a>
+                </button>
               </div>
             </div>
 
@@ -2694,8 +2820,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* NAVEGACIÓN INFERIOR DE 4 PESTAÑAS */}
-        <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-[#E3DDD5] py-2 px-3 flex justify-around items-center z-40">
+        {/* NAVEGACIÓN INFERIOR DE 5 PESTAÑAS */}
+        <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 backdrop-blur-md border-t border-[#E3DDD5] py-2 px-2 flex justify-around items-center z-40">
           <button
             onClick={() => {
               setCurrentCard(null);
@@ -2732,6 +2858,16 @@ export default function Home() {
             {diary.length > 0 && (
               <span className="absolute -top-1 right-2 w-2 h-2 bg-[#997343] rounded-full" />
             )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('voice')}
+            className={`flex flex-col items-center gap-0.5 text-[10px] font-medium transition-colors ${
+              activeTab === 'voice' ? 'text-[#997343] font-bold' : 'text-[#8A827A] hover:text-[#1C1817]'
+            }`}
+          >
+            <span className="text-lg">💌</span>
+            <span>Tu Voz</span>
           </button>
 
           <button
