@@ -2377,7 +2377,7 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-4.5 shadow-sm space-y-3">
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-3.5 shadow-sm space-y-3">
               <div className="flex justify-between items-center px-1">
                 <div>
                   <h3 className="text-xs font-serif font-bold text-[#1C1817] uppercase tracking-wider">
@@ -2667,15 +2667,18 @@ export default function Home() {
             </div>
 
             <p className="text-xs font-serif italic text-[#1C1817] font-semibold leading-tight text-center">
-              En este preciso segundo, otras personas están haciendo una pausa contigo.
-            </p>
+              En este preciso segundo, hay miles de personas que necesitan detenerse un momento.
+            </p>   
+            <p className="text-xs font-serif italic text-[#1C1817] font-semibold leading-tight text-center">
+              Aquí y AHORA, practicamos una pausa compartida.
+            </p>        
             
             {/* SECCIÓN 1: LA CIENCIA DE SENTIRNOS AHORA */}
             <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 space-y-3 shadow-sm text-left">
               <div className="flex items-center gap-2 text-xl border-b border-[#E3DDD5]/50 pb-2">
                 <span>🧠</span>
                 <h3 className="text-sm font-serif font-bold text-[#1C1817]">
-                  La ciencia de sentirnos AHORA
+                  La ciencia que hay detrás ...
                 </h3>
               </div>
               <p className="text-xs text-[#332E2B] leading-relaxed">
@@ -2703,7 +2706,7 @@ export default function Home() {
             </div>
 
             {/* SECCIÓN 3: DISTRIBUCIÓN Y TERMÓMETRO */}
-            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-4.5 space-y-3 shadow-sm">
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-3.5 space-y-3 shadow-sm">
               <div className="flex justify-between items-center border-b border-[#E3DDD5]/50 pb-2">
                 <span className="text-[10px] font-mono font-bold uppercase text-[#997343]">
                   ✦ DISTRIBUCIÓN EN TIEMPO REAL
@@ -2802,7 +2805,7 @@ export default function Home() {
             </div>
 
             {/* CARD 2: PUBLICAR TU PROPIA VOZ */}
-            <div className="bg-white border border-[#E3DDD5] rounded-3xl p-4.5 space-y-3 shadow-xs">
+            <div className="bg-white border border-[#E3DDD5] rounded-3xl p-3.5 space-y-3 shadow-xs">
               <div className="flex justify-between items-center border-b border-[#E3DDD5]/50 pb-2">
                 <span className="text-[10px] font-mono font-bold uppercase text-[#997343] flex items-center gap-1">
                   <span>✍️</span> COMPARTE TU REFLEXIÓN CON LA COMUNIDAD
