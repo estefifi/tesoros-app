@@ -2566,47 +2566,109 @@ export default function Home() {
         {/* PESTAÑA: AHORA */}
         {activeTab === 'thermometer' && (
           <div className="w-full flex-1 overflow-y-auto space-y-4 my-2 pr-1 max-h-[75vh] animate-fadeIn">
-            <div className="flex justify-between items-start mb-1">
-              <div className="space-y-1.5 pr-2 w-full">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-serif italic text-[#1C1817] font-bold">
-                    AQUÍ Y AHORA...
-                  </h2>
-                  <span className="flex items-center gap-1 text-[9px] font-mono font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full border border-red-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    EN VIVO
-                  </span>
-                </div>
-                
-                {/* BANNER DINÁMICO DE LA NECESIDAD MÁS SELECCIONADA */}
-                <div 
-                  className="w-full rounded-2xl p-4 my-2 border shadow-sm transition-all animate-fadeIn"
-                  style={{
-                    backgroundColor: `${mostNeeded.color}30`,
-                    borderColor: mostNeeded.color,
-                  }}
-                >
-                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-[#997343] block">
-                    🔥 NECESIDAD PREDOMINANTE AHORA mismo
-                  </span>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-lg font-serif font-bold text-[#1C1817]">
-                      {mostNeeded.label}
-                    </span>
-                    <span className="text-xs font-mono font-bold text-[#1C1817] bg-white/80 px-2.5 py-1 rounded-full border border-black/5">
-                      {mostNeeded.percentage}% de selecciones
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-[#332E2B] leading-snug mt-1.5 italic font-serif">
-                    &ldquo;La comunidad está buscando mayoritariamente {CATEGORY_ACTIONS[mostNeeded.label] || 'hacer una pausa'} hoy.&rdquo;
-                  </p>
+            {/* estilos locales del espejo — sólo viven dentro de esta pestaña */}
+            <style>{`
+              @keyframes mirrorTwinkle {
+                0%, 100% { opacity: .22; transform: scale(.65); }
+                50% { opacity: 1; transform: scale(1.15); }
+              }
+              .mirror-star { animation: mirrorTwinkle 2.6s ease-in-out infinite; }
+              @keyframes mirrorSheen {
+                0% { transform: translateX(-130%) rotate(18deg); }
+                100% { transform: translateX(230%) rotate(18deg); }
+              }
+              .mirror-sheen { animation: mirrorSheen 5.5s ease-in-out infinite; }
+            `}</style>
+
+            <div className="flex items-center justify-center gap-2">
+              <h2 className="text-2xl font-serif italic text-[#1C1817] font-bold">
+                AQUÍ Y AHORA...
+              </h2>
+              <span className="flex items-center gap-1 text-[9px] font-mono font-bold bg-red-100 text-red-600 px-2 py-0.5 rounded-full border border-red-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                EN VIVO
+              </span>
+            </div>
+
+            {/* HERO: EL ESPEJO */}
+            <div className="relative w-full flex flex-col items-center pt-1 pb-2">
+              <div
+                className="relative w-52 h-52 rounded-full overflow-hidden shadow-2xl"
+                style={{
+                  border: '6px solid #E8E2D8',
+                  background:
+                    'radial-gradient(circle at 32% 26%, rgba(255,255,255,0.97) 0%, rgba(226,222,214,0.55) 26%, rgba(28,24,23,0.94) 76%)',
+                  boxShadow: '0 12px 30px rgba(28,24,23,0.25), inset 0 0 0 1px rgba(255,255,255,0.4)',
+                }}
+              >
+                {/* brillo de cristal deslizante */}
+                <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none">
+                  <div
+                    className="mirror-sheen absolute top-0 left-0 w-1/3 h-[150%] -translate-y-6"
+                    style={{ background: 'linear-gradient(100deg, transparent, rgba(255,255,255,0.55), transparent)' }}
+                  />
                 </div>
 
-                <p className="text-xs font-serif italic text-[#1C1817] font-semibold leading-tight">
-                  En este preciso segundo, miles de personas están haciendo una pausa contigo.
-                </p>
+                {/* estrellas — las otras personas reflejadas contigo */}
+                <span className="mirror-star absolute rounded-full bg-white" style={{ top: '14%', left: '22%', width: 4, height: 4, animationDelay: '0s', boxShadow: '0 0 5px rgba(255,255,255,0.9)' }} />
+                <span className="mirror-star absolute rounded-full bg-white" style={{ top: '24%', left: '72%', width: 3, height: 3, animationDelay: '.4s', boxShadow: '0 0 5px rgba(255,255,255,0.9)' }} />
+                <span className="mirror-star absolute rounded-full bg-white" style={{ top: '68%', left: '18%', width: 3, height: 3, animationDelay: '.9s', boxShadow: '0 0 5px rgba(255,255,255,0.9)' }} />
+                <span className="mirror-star absolute rounded-full bg-white" style={{ top: '78%', left: '64%', width: 4, height: 4, animationDelay: '1.3s', boxShadow: '0 0 5px rgba(255,255,255,0.9)' }} />
+                <span className="mirror-star absolute rounded-full bg-white" style={{ top: '46%', left: '84%', width: 3, height: 3, animationDelay: '1.7s', boxShadow: '0 0 5px rgba(255,255,255,0.9)' }} />
+                <span className="mirror-star absolute rounded-full bg-white" style={{ top: '10%', left: '54%', width: 2, height: 2, animationDelay: '2.1s', boxShadow: '0 0 4px rgba(255,255,255,0.9)' }} />
+                <span className="mirror-star absolute rounded-full bg-white" style={{ top: '58%', left: '8%', width: 2, height: 2, animationDelay: '.7s', boxShadow: '0 0 4px rgba(255,255,255,0.9)' }} />
+                <span className="mirror-star absolute rounded-full bg-white" style={{ top: '86%', left: '38%', width: 2, height: 2, animationDelay: '1.5s', boxShadow: '0 0 4px rgba(255,255,255,0.9)' }} />
+
+                {/* texto central — la persona que se refleja eres tú */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-7">
+                  <span className="text-2xl mb-1 drop-shadow">🪞</span>
+                  <p className="text-[11px] font-serif italic text-white/95 leading-snug drop-shadow">
+                    El mayor tesoro
+                  </p>
+                  <p className="text-sm font-serif italic font-bold text-white leading-snug drop-shadow">
+                    eres tú.
+                  </p>
+                </div>
               </div>
+
+              <p className="text-[11px] font-serif italic text-[#8A827A] text-center mt-3 max-w-[290px] leading-relaxed">
+                Estamos hechos de estrellas.  
+                <p>
+                Ahora mismo, en algún lugar del mundo, alguien más: respira, se sostiene y busca calma, igual que tú.
+              </p>
+               <p>
+              Mira: no estás solo/a.
+              </p>
+              </p>
             </div>
+
+            {/* BANNER DINÁMICO — LO QUE DEVUELVE EL ESPEJO DE LA COMUNIDAD */}
+            <div
+              className="w-full rounded-2xl p-4 border shadow-sm transition-all animate-fadeIn"
+              style={{
+                backgroundColor: `${mostNeeded.color}30`,
+                borderColor: mostNeeded.color,
+              }}
+            >
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-[#997343] block">
+                🔥 LO QUE REFLEJA EL ESPEJO AHORA MISMO
+              </span>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-lg font-serif font-bold text-[#1C1817]">
+                  {mostNeeded.label}
+                </span>
+                <span className="text-xs font-mono font-bold text-[#1C1817] bg-white/80 px-2.5 py-1 rounded-full border border-black/5">
+                  {mostNeeded.percentage}% de selecciones
+                </span>
+              </div>
+              <p className="text-[11px] text-[#332E2B] leading-snug mt-1.5 italic font-serif">
+                &ldquo;La comunidad está buscando mayoritariamente {CATEGORY_ACTIONS[mostNeeded.label] || 'hacer una pausa'} hoy.&rdquo;
+              </p>
+            </div>
+
+            <p className="text-xs font-serif italic text-[#1C1817] font-semibold leading-tight text-center">
+              En este preciso segundo, miles de personas están haciendo una pausa contigo.
+            </p>
 
             {/* SECCIÓN 1: LA CIENCIA DE SENTIRNOS AHORA */}
             <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 space-y-3 shadow-sm text-left">
@@ -2876,7 +2938,7 @@ export default function Home() {
               activeTab === 'thermometer' ? 'text-[#997343] font-bold' : 'text-[#8A827A] hover:text-[#1C1817]'
             }`}
           >
-            <span className="text-lg">🔥</span>
+            <span className="text-lg">🪞</span>
             <span>Ahora</span>
           </button>
         </nav>
