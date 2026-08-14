@@ -2667,9 +2667,9 @@ export default function Home() {
             </div>
 
             <p className="text-xs font-serif italic text-[#1C1817] font-semibold leading-tight text-center">
-              En este preciso segundo, miles de personas están haciendo una pausa contigo.
+              En este preciso segundo, otras personas están haciendo una pausa contigo.
             </p>
-
+            
             {/* SECCIÓN 1: LA CIENCIA DE SENTIRNOS AHORA */}
             <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 space-y-3 shadow-sm text-left">
               <div className="flex items-center gap-2 text-xl border-b border-[#E3DDD5]/50 pb-2">
