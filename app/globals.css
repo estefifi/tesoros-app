@@ -2,28 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
+/* ===================================================
+   🎨 FIX FONDO NEGRO Y ESTILOS BASE (TESOROS)
+   =================================================== */
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
+/* Forzamos a que tanto el HTML como el BODY tengan siempre 
+   el color crema elegante (#FAF8F5) sin importar el modo oscuro del teléfono */
+html,
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: #FAF8F5 !important;
+  color: #332E2B;
+  min-height: 100vh;
+  /* Evita el rebote de pantalla negra al deslizar en iPhone (iOS) */
+  overscroll-behavior-y: none;
 }
 
 /* ===================================================
