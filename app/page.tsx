@@ -678,6 +678,13 @@ export default function Home() {
   };
 
   const handleDoPracticaNow = () => {
+    trackAnalyticsEvent('practice_started', {
+      category: currentCard?.['Categoría'] || '',
+      card: cleanText(
+        currentCard?.['Anverso (Gancho Científico)'] ||
+        currentCard?.['Modelo (Intención)']
+      ),
+    });
     setShowAutoModal(false);
     setHasShownAutoModal(true);
     setTimeout(() => {
@@ -990,8 +997,7 @@ export default function Home() {
     });
 
     saveToSupabase('card_utility_feedback_reasons', {
-      card_hook: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
-      rating: cardUtilityRating,
+      card_id: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
       reason: cardUtilityReason,
       created_at: new Date().toISOString(),
     });
@@ -1045,6 +1051,17 @@ export default function Home() {
   const saveCardToDiary = (cardToSave: Card, feelingText?: string, noteText?: string) => {
     const currentNote = noteText !== undefined ? noteText : userNote;
 
+    if (getPrimaryButtonType(cardToSave) === 'PRACTICA' && currentNote.trim()) {
+      trackAnalyticsEvent('practice_completed', {
+        category: cardToSave['Categoría'] || '',
+        card: cleanText(
+          cardToSave['Anverso (Gancho Científico)'] ||
+          cardToSave['Modelo (Intención)']
+        ),
+        reflection_length: currentNote.trim().length,
+      });
+    }
+
     setDiary((prevDiary) => {
       const existingIndex = prevDiary.findIndex((e) => isSameCard(e.card, cardToSave));
       let updated: DiaryEntry[];
@@ -1075,6 +1092,14 @@ export default function Home() {
       setIsCardSaved(true);
     }
 
+    trackAnalyticsEvent('card_saved', {
+      category: cardToSave['Categoría'] || '',
+      card: cleanText(
+        cardToSave['Anverso (Gancho Científico)'] ||
+        cardToSave['Modelo (Intención)']
+      ),
+    });
+
     triggerSaveFlightAndSparkle(cardToSave);
   };
 
@@ -1094,6 +1119,15 @@ export default function Home() {
 
   const handleShare = (card?: Card) => {
     const targetCard = card || currentCard;
+    if (targetCard) {
+      trackAnalyticsEvent('card_shared', {
+        category: targetCard['Categoría'] || '',
+        card: cleanText(
+          targetCard['Anverso (Gancho Científico)'] ||
+          targetCard['Modelo (Intención)']
+        ),
+      });
+    }
     if (navigator.share && targetCard) {
       const hookText = cleanText(targetCard['Anverso (Gancho Científico)'] || targetCard['Modelo (Intención)']);
       navigator
