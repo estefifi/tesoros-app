@@ -107,6 +107,15 @@ interface DiaryEntry {
   note?: string;
 }
 
+interface DailyFlipRow {
+  id: string;
+  user_id: string;
+  flip_count: number | null;
+  last_flip_date: string | null;
+  saved_cards: string[] | null;
+  created_at?: string | null;
+}
+
 const cleanText = (text?: string): string => {
   if (!text) return '';
   return text
@@ -188,6 +197,101 @@ const saveToSupabase = async (tableName: string, payload: Record<string, any>) =
   }
 };
 
+
+// SINCRONIZA EL CONTADOR DIARIO CON SUPABASE.
+// daily_flips está diseñado como una fila por usuario y día: flip_count + saved_cards.
+const syncDailyFlipsToSupabase = async (today: string, selectedCard: Card, flipCount: number) => {
+  if (!supabase) return;
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const cardKey = String(
+      selectedCard['#'] ??
+      cleanText(selectedCard['Anverso (Gancho Científico)'] || selectedCard['Modelo (Intención)'])
+    );
+
+    const { data: existingRows, error: readError } = await supabase
+      .from('daily_flips')
+      .select('id, user_id, flip_count, last_flip_date, saved_cards, created_at')
+      .eq('user_id', user.id)
+      .eq('last_flip_date', today)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (readError) {
+      console.error('[Supabase Read -> daily_flips]', readError);
+      return;
+    }
+
+    const existing = (existingRows?.[0] as DailyFlipRow | undefined) ?? null;
+    const previousCards = Array.isArray(existing?.saved_cards) ? existing.saved_cards : [];
+    const savedCards = [...previousCards, cardKey];
+
+    if (existing) {
+      const { error: updateError } = await supabase
+        .from('daily_flips')
+        .update({
+          flip_count: flipCount,
+          last_flip_date: today,
+          saved_cards: savedCards,
+        })
+        .eq('id', existing.id);
+
+      if (updateError) {
+        console.error('[Supabase Update -> daily_flips]', updateError);
+      }
+      return;
+    }
+
+    const { error: insertError } = await supabase
+      .from('daily_flips')
+      .insert({
+        user_id: user.id,
+        flip_count: flipCount,
+        last_flip_date: today,
+        saved_cards: savedCards,
+        created_at: new Date().toISOString(),
+      });
+
+    if (insertError) {
+      console.error('[Supabase Insert -> daily_flips]', insertError);
+    }
+  } catch (error) {
+    console.error('[Supabase Sync -> daily_flips]', error);
+  }
+};
+
+// CONVIERTE LOS saved_cards DE daily_flips EN ESTADÍSTICAS POR CATEGORÍA.
+const getCategoryFromStoredCard = (storedCard: string): string | null => {
+  const normalized = String(storedCard).trim();
+  if (!normalized) return null;
+
+  try {
+    const parsed = JSON.parse(normalized);
+    if (parsed?.category && CATEGORY_COLORS[String(parsed.category).toUpperCase()]) {
+      return String(parsed.category).toUpperCase();
+    }
+    if (parsed?.cardId !== undefined) {
+      const byId = cards.find((card) => String(card['#']) === String(parsed.cardId));
+      if (byId?.['Categoría']) return String(byId['Categoría']).toUpperCase();
+    }
+  } catch (_) {}
+
+  const directCategory = normalized.toUpperCase();
+  if (CATEGORY_COLORS[directCategory]) return directCategory;
+
+  const byId = cards.find((card) => String(card['#']) === normalized);
+  if (byId?.['Categoría']) return String(byId['Categoría']).toUpperCase();
+
+  const byHook = cards.find((card) =>
+    cleanText(card['Anverso (Gancho Científico)'] || card['Modelo (Intención)']) === normalized
+  );
+  if (byHook?.['Categoría']) return String(byHook['Categoría']).toUpperCase();
+
+  return null;
+};
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -349,6 +453,62 @@ export default function Home() {
     if (savedEnergy) {
       setInitialEnergy(parseInt(savedEnergy, 10));
     }
+  }, [user]);
+
+  // AHORA: la distribución se obtiene de daily_flips en Supabase.
+  // Si la lectura comunitaria no está permitida por RLS, mantenemos la experiencia local sin romper la app.
+  useEffect(() => {
+    if (!user || !supabase) return;
+
+    let cancelled = false;
+
+    const loadDailyCommunityStats = async () => {
+        try {
+        const today = getTodayKey();
+        const { data, error } = await supabase
+          .from('daily_flips')
+          .select('saved_cards, flip_count, last_flip_date')
+          .eq('last_flip_date', today);
+
+        if (cancelled) return;
+
+        if (error) {
+          console.error('[Supabase Read -> daily_flips / AHORA]', error);
+          return;
+        }
+
+        const aggregated: Record<string, number> = { ...ZERO_STATS };
+
+        (data || []).forEach((row: { saved_cards?: string[] | null; flip_count?: number | null }) => {
+          const storedCards = Array.isArray(row.saved_cards) ? row.saved_cards : [];
+          storedCards.forEach((storedCard) => {
+            const category = getCategoryFromStoredCard(storedCard);
+            if (category && aggregated[category] !== undefined) {
+              aggregated[category] += 1;
+            }
+          });
+        });
+
+        // Datos antiguos pueden tener flip_count pero no saved_cards.
+        // En ese caso no inventamos una distribución; conservamos la estadística local si existe.
+        const hasSupabaseCards = Object.values(aggregated).some((value) => value > 0);
+        if (hasSupabaseCards) {
+          setDailyStats(aggregated);
+        }
+
+      } catch (error) {
+        if (!cancelled) {
+          console.error('[Supabase Load -> AHORA]', error);
+        }
+      } finally {
+      }
+    };
+
+    loadDailyCommunityStats();
+
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const handleGoogleSignIn = async () => {
@@ -635,6 +795,9 @@ export default function Home() {
           card_hook: selected['Anverso (Gancho Científico)'],
           flip_number: newFlips,
         });
+
+        // Persistimos el giro en daily_flips sin bloquear la experiencia de la carta.
+        void syncDailyFlipsToSupabase(today, selected, newFlips);
       }
       setIsLoading(false);
     }, 1200);
