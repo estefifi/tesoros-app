@@ -455,6 +455,58 @@ export default function Home() {
     }
   }, [user]);
 
+    // TU VOZ: cargar las voces reales de la comunidad desde Supabase
+    useEffect(() => {
+      if (!user || !supabase) return;
+  
+      let cancelled = false;
+  
+      const loadCommunityVoices = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('user_voices')
+            .select('uuid, message, created_at')
+            .order('created_at', { ascending: false })
+            .limit(30);
+  
+          if (cancelled) return;
+  
+          if (error) {
+            console.error('[Supabase Read -> user_voices]', error);
+            return;
+          }
+  
+          const realVoices = (data || []).map((voice) => ({
+            id: voice.uuid,
+            author: 'Alguien de la comunidad',
+            location: 'Comunidad',
+            text: voice.message,
+            feeling: '💌 Compartido',
+            category: 'TU VOZ',
+            date: new Date(voice.created_at).toLocaleDateString('es-ES', {
+              day: 'numeric',
+              month: 'short',
+            }),
+          }));
+  
+          setCommunityVoices([
+            ...realVoices,
+            ...INITIAL_COMMUNITY_VOICES,
+          ]);
+        } catch (error) {
+          if (!cancelled) {
+            console.error('[Supabase Load -> user_voices]', error);
+          }
+        }
+      };
+  
+      loadCommunityVoices();
+  
+      return () => {
+        cancelled = true;
+      };
+    }, [user]);
+
   // AHORA: la distribución se obtiene de daily_flips en Supabase.
   // Si la lectura comunitaria no está permitida por RLS, mantenemos la experiencia local sin romper la app.
   useEffect(() => {
@@ -1072,7 +1124,7 @@ export default function Home() {
     setCommunityVoices([newVoice, ...communityVoices]);
     setVoiceSubmitted(true);
     trackAnalyticsEvent('user_voice_submitted', { text: voiceInput });
-    saveToSupabase('user_voices', { text: voiceInput, created_at: new Date().toISOString() });
+    saveToSupabase('user_voices', { message: voiceInput.trim(), created_at: new Date().toISOString() });
 
     setTimeout(() => {
       setVoiceInput('');
@@ -2943,41 +2995,9 @@ export default function Home() {
             </p>   
             <p className="text-xs font-serif italic text-[#1C1817] font-semibold leading-tight text-center">
               Aquí y AHORA, practicamos una pausa compartida.
-            </p>        
-            
-            {/* SECCIÓN 1: LA CIENCIA DE SENTIRNOS AHORA */}
-            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 space-y-3 shadow-sm text-left">
-              <div className="flex items-center gap-2 text-xl border-b border-[#E3DDD5]/50 pb-2">
-                <span>🧠</span>
-                <h3 className="text-sm font-serif font-bold text-[#1C1817]">
-                  La ciencia que hay detrás ...
-                </h3>
-              </div>
-              <p className="text-xs text-[#332E2B] leading-relaxed">
-                Tu sistema nervioso está diseñado para autorregularse mediante la co-regulación. Cuando vengas aquí y ahora, descubrirás que tu cansancio o tu ansiedad son el reflejo de muchos otros. Tu cerebro percibirá en tiempo real que no estás solo/a en la necesidad de parar y la sensación de amenaza disminuirá. En este segundo, el cortisol baja y recuperas el tesoro más grande: tu propia calma.
-              </p>
-            </div>
+            </p>   
 
-            {/* SECCIÓN 2: A TI */}
-            <div className="w-full bg-amber-50/60 border border-amber-200/80 rounded-3xl p-5 space-y-3 shadow-sm text-center">
-              <span className="text-xs font-mono font-bold text-[#997343] uppercase tracking-widest block">
-                ✦ A ti ✦
-              </span>
-              <p className="text-xs text-[#332E2B] leading-relaxed">
-                Cada carta, cada respiración y cada pequeño ejercicio está inspirado en herramientas respaldadas por la psicología y la ciencia del bienestar, pero su verdadero propósito no es cambiar quién eres.
-              </p>
-              <p className="text-xs font-serif italic text-[#1C1817] font-medium leading-relaxed">
-                Es ayudarte a recordar el valor que ya habita en ti.
-              </p>
-              <p className="text-xs text-[#332E2B] leading-relaxed">
-                Y, cuando miras el reflejo de toda una comunidad, quizá descubras algo importante:
-              </p>
-              <blockquote className="text-xs font-serif italic font-bold text-[#997343] pt-1">
-                “No eres la única persona intentando volver a encontrarse.”
-              </blockquote>
-            </div>
-
-            {/* SECCIÓN 3: DISTRIBUCIÓN Y TERMÓMETRO */}
+             {/* SECCIÓN 1: DISTRIBUCIÓN Y TERMÓMETRO */}
             <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-3.5 space-y-3 shadow-sm">
               <div className="flex justify-between items-center border-b border-[#E3DDD5]/50 pb-2">
                 <span className="text-[10px] font-mono font-bold uppercase text-[#997343]">
@@ -3008,6 +3028,38 @@ export default function Home() {
                   );
                 })}
               </div>
+            </div>     
+            
+            {/* SECCIÓN 2: LA CIENCIA DE SENTIRNOS AHORA */}
+            <div className="w-full bg-white border border-[#E3DDD5] rounded-3xl p-5 space-y-3 shadow-sm text-left">
+              <div className="flex items-center gap-2 text-xl border-b border-[#E3DDD5]/50 pb-2">
+                <span>🧠</span>
+                <h3 className="text-sm font-serif font-bold text-[#1C1817]">
+                  La ciencia que hay detrás ...
+                </h3>
+              </div>
+              <p className="text-xs text-[#332E2B] leading-relaxed">
+                Tu sistema nervioso está diseñado para autorregularse mediante la co-regulación. Cuando vengas aquí y ahora, descubrirás que tu cansancio o tu ansiedad son el reflejo de muchos otros. Tu cerebro percibirá en tiempo real que no estás solo/a en la necesidad de parar y la sensación de amenaza disminuirá. En este segundo, el cortisol baja y recuperas el tesoro más grande: tu propia calma.
+              </p>
+            </div>
+
+            {/* SECCIÓN 3: A TI */}
+            <div className="w-full bg-amber-50/60 border border-amber-200/80 rounded-3xl p-5 space-y-3 shadow-sm text-center">
+              <span className="text-xs font-mono font-bold text-[#997343] uppercase tracking-widest block">
+                ✦ A ti ✦
+              </span>
+              <p className="text-xs text-[#332E2B] leading-relaxed">
+                Cada carta, cada respiración y cada pequeño ejercicio está inspirado en herramientas respaldadas por la psicología y la ciencia del bienestar, pero su verdadero propósito no es cambiar quién eres.
+              </p>
+              <p className="text-xs font-serif italic text-[#1C1817] font-medium leading-relaxed">
+                Es ayudarte a recordar el valor que ya habita en ti.
+              </p>
+              <p className="text-xs text-[#332E2B] leading-relaxed">
+                Y, cuando miras el reflejo de toda una comunidad, quizá descubras algo importante:
+              </p>
+              <blockquote className="text-xs font-serif italic font-bold text-[#997343] pt-1">
+                “No eres la única persona intentando volver a encontrarse.”
+              </blockquote>
             </div>
 
             {/* SECCIÓN 4: AHORA! EN EL PLANETA */}
