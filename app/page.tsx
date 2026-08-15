@@ -465,7 +465,7 @@ export default function Home() {
         try {
           const { data, error } = await supabase
             .from('user_voices')
-            .select('uuid, message, created_at')
+            .select('id, message, created_at')
             .order('created_at', { ascending: false })
             .limit(30);
   
@@ -477,7 +477,7 @@ export default function Home() {
           }
   
           const realVoices = (data || []).map((voice) => ({
-            id: voice.uuid,
+            id: voice.id,
             author: 'Alguien de la comunidad',
             location: 'Comunidad',
             text: voice.message,
