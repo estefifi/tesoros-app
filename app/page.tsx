@@ -898,43 +898,6 @@ export default function Home() {
       currentCard['Categoría'] || ''
     ).toUpperCase();
   
-    const handleCardUtilitySelect = (rating: 'mucho' | 'un_poco' | 'no_mucho') => {
-      if (!currentCard) return;
-  
-      setCardUtilityRating(rating);
-      setShowReasonInput(true);
-  
-      const cardId = String(
-        currentCard['#'] ??
-        cleanText(
-          currentCard['Anverso (Gancho Científico)'] ||
-          currentCard['Modelo (Intención)']
-        )
-      );
-  
-      const category = String(
-        currentCard['Categoría'] || ''
-      ).toUpperCase();
-  
-      const useful = rating !== 'no_mucho';
-  
-      trackAnalyticsEvent('card_utility_rated', {
-        card: cleanText(
-          currentCard['Anverso (Gancho Científico)'] ||
-          currentCard['Modelo (Intención)']
-        ),
-        rating,
-      });
-  
-      saveToSupabase('card_utility_feedback', {
-        card_id: cardId,
-        category,
-        card_type: cleanText(currentCard['Modelo (Intención)']),
-        useful,
-        created_at: new Date().toISOString(),
-      });
-    };
-
     // "Mucho" y "Un poco" significan que el tesoro sí resultó útil.
     // "No mucho" significa que no resultó útil.
     const useful = rating !== 'no_mucho';
