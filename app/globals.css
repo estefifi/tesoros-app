@@ -39,3 +39,23 @@ body {
 .sparkle-glow {
   animation: sparklePulse 0.7s ease-in-out forwards;
 }
+.tesoros-feedback-focus {
+  animation: tesorosFeedbackFocus 1.4s ease-out;
+}
+
+@keyframes tesorosFeedbackFocus {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(250, 208, 44, 0);
+  }
+
+  35% {
+    transform: scale(1.015);
+    box-shadow: 0 0 0 8px rgba(250, 208, 44, 0.18);
+  }
+
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(250, 208, 44, 0);
+  }
+}

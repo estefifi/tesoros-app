@@ -586,7 +586,7 @@ export default function Home() {
     };
 
     if (isFlipped && currentCard && !hasShownAutoModal && activeTab === 'draw') {
-      timer = setTimeout(showAutoModalNow, 9000);
+      timer = setTimeout(showAutoModalNow, 12000);
 
       const handleEarlyInteraction = (event: MouseEvent) => {
         const target = event.target as HTMLElement | null;
@@ -821,21 +821,111 @@ export default function Home() {
     }
   };
 
-  const handleCardUtilitySelect = (rating: 'mucho' | 'un_poco' | 'no_mucho') => {
+  const handleCardUtilitySelect = (  rating: 'mucho' | 'un_poco' | 'no_mucho'  ) =>  {
+    if (!currentCard) return;
+  
     setCardUtilityRating(rating);
     setShowReasonInput(true);
+  
+    const cardId = String(
+      currentCard['#'] ??
+      cleanText(
+        currentCard['Anverso (Gancho Científico)'] ||
+        currentCard['Modelo (Intención)']
+      )
+    );
+  
+    const category = String(
+      currentCard['Categoría'] || ''
+    ).toUpperCase();
+  
+    const handleCardUtilitySelect = (rating: 'mucho' | 'un_poco' | 'no_mucho') => {
+      if (!currentCard) return;
+  
+      setCardUtilityRating(rating);
+      setShowReasonInput(true);
+  
+      const cardId = String(
+        currentCard['#'] ??
+        cleanText(
+          currentCard['Anverso (Gancho Científico)'] ||
+          currentCard['Modelo (Intención)']
+        )
+      );
+  
+      const category = String(
+        currentCard['Categoría'] || ''
+      ).toUpperCase();
+  
+      const useful = rating !== 'no_mucho';
+  
+      trackAnalyticsEvent('card_utility_rated', {
+        card: cleanText(
+          currentCard['Anverso (Gancho Científico)'] ||
+          currentCard['Modelo (Intención)']
+        ),
+        rating,
+      });
+  
+      saveToSupabase('card_utility_feedback', {
+        card_id: cardId,
+        category,
+        card_type: cleanText(currentCard['Modelo (Intención)']),
+        useful,
+        created_at: new Date().toISOString(),
+      });
+    };
 
+    // "Mucho" y "Un poco" significan que el tesoro sí resultó útil.
+    // "No mucho" significa que no resultó útil.
+    const useful = rating !== 'no_mucho';
+  
     trackAnalyticsEvent('card_utility_rated', {
-      card: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
+      card: cleanText(
+        currentCard['Anverso (Gancho Científico)'] ||
+        currentCard['Modelo (Intención)']
+      ),
       rating,
     });
-
+  
     saveToSupabase('card_utility_feedback', {
-      card_id: currentCard?.['#']?.toString() || currentCard?.['Anverso (Gancho Científico)'] || 'unknown',
-      category: currentCard?.['Categoría'] || null,
-      card_type: currentCard?.['Modelo (Intención)'] || null,
-      useful: rating !== 'no_mucho',
+      card_id: cardId,
+      category,
+      card_type: cleanText(currentCard['Modelo (Intención)']),
+      useful,
+      created_at: new Date().toISOString(),
     });
+  };
+
+  const handleAutoUtilitySelect = (
+    rating: 'mucho' | 'un_poco' | 'no_mucho'
+  ) => {
+    // Usa el mismo flujo que ya funciona:
+    // registra la valoración y la deja seleccionada abajo.
+    handleCardUtilitySelect(rating);
+
+    // Cierra la ventana flotante.
+    setShowAutoModal(false);
+
+    // Después de cerrarla, lleva a la valoración inferior.
+    setTimeout(() => {
+      const feedbackElement = document.getElementById(
+        'card-utility-feedback'
+      );
+
+      if (!feedbackElement) return;
+
+      feedbackElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+
+      feedbackElement.classList.add('tesoros-feedback-focus');
+
+      setTimeout(() => {
+        feedbackElement.classList.remove('tesoros-feedback-focus');
+      }, 1400);
+    }, 180);
   };
 
   const handleCardReasonSubmit = () => {
@@ -1562,16 +1652,34 @@ export default function Home() {
                 </button>
               )}
 
-              <button
-                onClick={() => {
-                  closeAutoModal();
-                  setShowCheckIn(true);
-                }}
-                className="w-full py-3 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-xs font-semibold hover:bg-[#FAF8F5] transition-all flex items-center justify-center gap-2 shadow-2xs"
-              >
-                <span>❤️‍🩹</span>
-                <span>¿Cuánto te ayudó?</span>
-              </button>
+<div className="w-full pt-1">
+                <div className="text-[9px] font-mono tracking-widest text-[#997343] uppercase font-bold mb-2">
+                  ✦ ¿TE SIRVIÓ ESTE TESORO? ✦
+                </div>
+
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    onClick={() => handleAutoUtilitySelect('mucho')}
+                    className="py-2.5 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-semibold hover:bg-[#FAF8F5] transition-all active:scale-95"
+                  >
+                    ❤️ Mucho
+                  </button>
+
+                  <button
+                    onClick={() => handleAutoUtilitySelect('un_poco')}
+                    className="py-2.5 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-semibold hover:bg-[#FAF8F5] transition-all active:scale-95"
+                  >
+                    🙂 Un poco
+                  </button>
+
+                  <button
+                    onClick={() => handleAutoUtilitySelect('no_mucho')}
+                    className="py-2.5 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-semibold hover:bg-[#FAF8F5] transition-all active:scale-95"
+                  >
+                    😐 No mucho
+                  </button>
+                </div>
+              </div>
             </div>
 
             <button
@@ -2265,9 +2373,10 @@ export default function Home() {
                       <span className="text-[10px] font-mono font-bold uppercase text-[#997343] block">
                         ✦ ¿TE SIRVIÓ ESTE TESORO?
                       </span>
-                      <div className="grid grid-cols-3 gap-1.5">
+                      <div id="card-utility-feedback"
+                            className="grid grid-cols-3 gap-1.5">
                         <button
-                          onClick={() => handleCardUtilitySelect('mucho')}
+                          onClick={() => handleAutoUtilitySelect('mucho')}
                           className={`py-2 px-1 rounded-xl text-[10px] font-bold border transition-all ${
                             cardUtilityRating === 'mucho'
                               ? 'bg-amber-100 border-[#997343] text-[#997343]'
@@ -2277,7 +2386,7 @@ export default function Home() {
                           ❤️ Mucho
                         </button>
                         <button
-                          onClick={() => handleCardUtilitySelect('un_poco')}
+                          onClick={() => handleAutoUtilitySelect('un_poco')}
                           className={`py-2 px-1 rounded-xl text-[10px] font-bold border transition-all ${
                             cardUtilityRating === 'un_poco'
                               ? 'bg-amber-100 border-[#997343] text-[#997343]'
@@ -2287,7 +2396,7 @@ export default function Home() {
                           🙂 Un poco
                         </button>
                         <button
-                          onClick={() => handleCardUtilitySelect('no_mucho')}
+                          onClick={() => handleAutoUtilitySelect('no_mucho')}
                           className={`py-2 px-1 rounded-xl text-[10px] font-bold border transition-all ${
                             cardUtilityRating === 'no_mucho'
                               ? 'bg-amber-100 border-[#997343] text-[#997343]'
