@@ -3039,7 +3039,7 @@ export default function Home() {
                 </h3>
               </div>
               <p className="text-xs text-[#332E2B] leading-relaxed">
-                Tu sistema nervioso está diseñado para autorregularse mediante la co-regulación. Cuando vengas aquí y ahora, descubrirás que tu cansancio o tu ansiedad son el reflejo de muchos otros. Tu cerebro percibirá en tiempo real que no estás solo/a en la necesidad de parar y la sensación de amenaza disminuirá. En este segundo, el cortisol baja y recuperas el tesoro más grande: tu propia calma.
+                Tu sistema nervioso está diseñado para autorregularse mediante la co-regulación. En este momento y lugar, descubrirás que tu cansancio o tu ansiedad son el reflejo de muchos otros. Tu cerebro percibirá en tiempo real que no estás solo/a en la necesidad de parar y la sensación de amenaza disminuirá. En este segundo, el cortisol baja y recuperas el tesoro más grande: tu propia calma.
               </p>
             </div>
 
