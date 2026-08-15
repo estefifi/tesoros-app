@@ -811,7 +811,6 @@ export default function Home() {
 
     trackAnalyticsEvent('initial_energy_submitted', { energy_level: level });
     saveToSupabase('user_energy_checkins', {
-      date: today,
       energy_level: level,
       created_at: new Date().toISOString(),
     });
@@ -832,9 +831,10 @@ export default function Home() {
     });
 
     saveToSupabase('card_utility_feedback', {
-      card_hook: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
-      rating,
-      created_at: new Date().toISOString(),
+      card_id: currentCard?.['#']?.toString() || currentCard?.['Anverso (Gancho Científico)'] || 'unknown',
+      category: currentCard?.['Categoría'] || null,
+      card_type: currentCard?.['Modelo (Intención)'] || null,
+      useful: rating !== 'no_mucho',
     });
   };
 
