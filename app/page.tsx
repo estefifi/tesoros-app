@@ -127,6 +127,18 @@ const cleanText = (text?: string): string => {
     .trim();
 };
 
+const getAnalyticsCardId = (card?: Card | null): string => {
+  if (!card) return '';
+
+  const id = card['#'];
+
+  if (id !== undefined && id !== null && String(id).trim() !== '') {
+    return String(id);
+  }
+
+  return '';
+};
+
 const isSameCard = (c1: Card | null, c2: Card | null): boolean => {
   if (!c1 || !c2) return false;
   if (c1['#'] !== undefined && c1['#'] !== null && c1['#'] !== '' && c1['#'] === c2['#']) {
@@ -705,10 +717,7 @@ export default function Home() {
   const handleDoPracticaNow = () => {
     trackAnalyticsEvent('practice_started', {
       category: currentCard?.['Categoría'] || '',
-      card: cleanText(
-        currentCard?.['Anverso (Gancho Científico)'] ||
-        currentCard?.['Modelo (Intención)']
-      ),
+      card_id: getAnalyticsCardId(currentCard),
     });
     setShowAutoModal(false);
     setHasShownAutoModal(true);
@@ -876,7 +885,7 @@ export default function Home() {
 
         trackAnalyticsEvent('card_drawn', {
           category: catName,
-          card_hook: selected['Anverso (Gancho Científico)'],
+          card_id: getAnalyticsCardId(selected),
           flip_number: newFlips,
         });
 
@@ -928,10 +937,8 @@ export default function Home() {
     const useful = rating !== 'no_mucho';
   
     trackAnalyticsEvent('card_utility_rated', {
-      card: cleanText(
-        currentCard['Anverso (Gancho Científico)'] ||
-        currentCard['Modelo (Intención)']
-      ),
+      category,
+      card_id: getAnalyticsCardId(currentCard),
       rating,
     });
   
@@ -979,13 +986,13 @@ export default function Home() {
     if (!cardUtilityReason.trim()) return;
 
     trackAnalyticsEvent('card_utility_reason_submitted', {
-      card: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
+      category: currentCard?.['Categoría'] || '',
+      card_id: getAnalyticsCardId(currentCard),
       rating: cardUtilityRating,
-      reason: cardUtilityReason,
     });
 
     saveToSupabase('card_utility_feedback_reasons', {
-      card_id: currentCard ? currentCard['Anverso (Gancho Científico)'] : '',
+      card_id: getAnalyticsCardId(currentCard),
       reason: cardUtilityReason,
       created_at: new Date().toISOString(),
     });
@@ -998,7 +1005,6 @@ export default function Home() {
 
     trackAnalyticsEvent('session_end_survey_submitted', {
       would_return: wouldReturn,
-      roadmap_wish: roadmapWish,
     });
 
     saveToSupabase('session_roadmap_feedback', {
@@ -1042,10 +1048,7 @@ export default function Home() {
     if (getPrimaryButtonType(cardToSave) === 'PRACTICA' && currentNote.trim()) {
       trackAnalyticsEvent('practice_completed', {
         category: cardToSave['Categoría'] || '',
-        card: cleanText(
-          cardToSave['Anverso (Gancho Científico)'] ||
-          cardToSave['Modelo (Intención)']
-        ),
+        card_id: getAnalyticsCardId(cardToSave),
         reflection_length: currentNote.trim().length,
       });
     }
@@ -1082,10 +1085,7 @@ export default function Home() {
 
     trackAnalyticsEvent('card_saved', {
       category: cardToSave['Categoría'] || '',
-      card: cleanText(
-        cardToSave['Anverso (Gancho Científico)'] ||
-        cardToSave['Modelo (Intención)']
-      ),
+      card_id: getAnalyticsCardId(cardToSave),
     });
 
     triggerSaveFlightAndSparkle(cardToSave);
@@ -1110,10 +1110,7 @@ export default function Home() {
     if (targetCard) {
       trackAnalyticsEvent('card_shared', {
         category: targetCard['Categoría'] || '',
-        card: cleanText(
-          targetCard['Anverso (Gancho Científico)'] ||
-          targetCard['Modelo (Intención)']
-        ),
+        card_id: getAnalyticsCardId(targetCard),
       });
     }
     if (navigator.share && targetCard) {
@@ -1145,7 +1142,7 @@ export default function Home() {
 
     setCommunityVoices([newVoice, ...communityVoices]);
     setVoiceSubmitted(true);
-    trackAnalyticsEvent('user_voice_submitted', { text: voiceInput });
+    trackAnalyticsEvent('user_voice_submitted', {});
     saveToSupabase('user_voices', { message: voiceInput.trim(), created_at: new Date().toISOString() });
 
     setTimeout(() => {
@@ -1818,7 +1815,7 @@ export default function Home() {
                     onClick={() => {
                       if (!feedbackText.trim()) return;
                       setFeedbackSent(true);
-                      trackAnalyticsEvent('general_feedback_sent', { text: feedbackText });
+                      trackAnalyticsEvent('general_feedback_sent', {});
                       saveToSupabase('general_user_feedback', { text: feedbackText, created_at: new Date().toISOString() });
                     }}
                     disabled={!feedbackText.trim()}
