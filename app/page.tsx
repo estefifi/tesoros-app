@@ -295,6 +295,28 @@ const getCategoryFromStoredCard = (storedCard: string): string | null => {
 
   return null;
 };
+const GoogleAnalyticsTag = () => {
+  if (!GA_MEASUREMENT_ID) return null;
+
+  return (
+    <>
+      <Script
+        src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){window.dataLayer.push(arguments);}
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', '${GA_MEASUREMENT_ID}');
+        `}
+      </Script>
+    </>
+  );
+};
+
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -1196,18 +1218,23 @@ export default function Home() {
 
   if (authLoading) {
     return (
-      <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-center p-6 antialiased">
+      <>
+        <GoogleAnalyticsTag />
+        <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-center p-6 antialiased">
         <div className="text-6xl animate-pulse mb-4">💎</div>
         <p className="text-xs font-serif italic text-[#997343] font-semibold tracking-wider">
           Preparando tu espacio...
         </p>
       </main>
+      </>
     );
   }
 
   if (!user) {
     return (
-      <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-center p-6 antialiased">
+      <>
+        <GoogleAnalyticsTag />
+        <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-center p-6 antialiased">
         <div className="w-full max-w-sm bg-white rounded-[32px] border border-[#E3DDD5] shadow-xl p-7 text-center">
           <div className="text-6xl mb-4">💎</div>
           <p className="text-[10px] font-mono tracking-[0.2em] text-[#997343] uppercase font-bold">
@@ -1258,28 +1285,13 @@ export default function Home() {
           )}
         </div>
       </main>
+      </>
     );
   }
 
   return (
     <>
-      {GA_MEASUREMENT_ID && (
-        <>
-          <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
-            strategy="afterInteractive"
-          />
-          <Script id="google-analytics" strategy="afterInteractive">
-            {`
-              window.dataLayer = window.dataLayer || [];
-              function gtag(){window.dataLayer.push(arguments);}
-              window.gtag = gtag;
-              gtag('js', new Date());
-              gtag('config', '${GA_MEASUREMENT_ID}');
-            `}
-          </Script>
-        </>
-      )}
+      <GoogleAnalyticsTag />
 
       <style jsx global>{`
         @keyframes pulseGlow {
