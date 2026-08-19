@@ -747,6 +747,11 @@ export default function Home() {
           setCycleDay(nextDay);
           localStorage.setItem('tesoros_cycle_day', nextDay.toString());
           if (nextDay === 31) {
+            trackAnalyticsEvent('journey_completed', {
+              cycle_day: 31,
+              cycle_number: completedCycles.length + 1,
+            });
+          
             setShowDay31Modal(true);
           }
         } else if (cycleDay === 31) {
@@ -772,14 +777,22 @@ export default function Home() {
   };
 
   const handleRestartCycle = () => {
+    trackAnalyticsEvent('journey_restarted', {
+      cycle_number: completedCycles.length + 1,
+    });
+  
     const newCompletedRecord: PolishedDiamondRecord = {
       id: Date.now().toString(),
       cycleNumber: completedCycles.length + 1,
-      dateCompleted: new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }),
+      dateCompleted: new Date().toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      }),
       name: `Diamante Pulido #${completedCycles.length + 1}`,
       notes: '31 días de autodescubrimiento completados con éxito.',
     };
-
+ 
     const updated = [newCompletedRecord, ...completedCycles];
     setCompletedCycles(updated);
     localStorage.setItem('tesoros_completed_cycles', JSON.stringify(updated));
