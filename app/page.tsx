@@ -1819,18 +1819,32 @@ export default function Home() {
                 <textarea
                   value={feedbackText}
                   onChange={(e) => setFeedbackText(e.target.value)}
-                  placeholder="Cuéntanos cómo te ayudó esta carta o comparte tus sugerencias..."
+                  placeholder="Cuéntanos: ¿qué te despertó este tesoro?, ¿cómo te ayudó? o comparte tus sugerencias..."
                   rows={4}
                   className="w-full text-xs p-3 rounded-2xl bg-white border border-[#E3DDD5] text-[#1C1817] placeholder-[#B5AEA7] focus:outline-none focus:border-[#997343] resize-none"
                 />
                 <div className="w-full space-y-2">
                   <button
-                    onClick={() => {
-                      if (!feedbackText.trim()) return;
-                      setFeedbackSent(true);
-                      trackAnalyticsEvent('general_feedback_sent', {});
-                      saveToSupabase('general_user_feedback', { text: feedbackText, created_at: new Date().toISOString() });
-                    }}
+                 onClick={() => {
+                  if (!feedbackText.trim()) return;
+                
+                  const cardId = currentCard ? getAnalyticsCardId(currentCard) : null;
+                  const category = currentCard?.['Categoría'] || null;
+                
+                  setFeedbackSent(true);
+                
+                  trackAnalyticsEvent('card_comment_sent', {
+                    card_id: cardId,
+                    category,
+                  });
+                
+                  saveToSupabase('general_user_feedback', {
+                    text: feedbackText.trim(),
+                    card_id: cardId,
+                    category,
+                    created_at: new Date().toISOString(),
+                  });
+                }}
                     disabled={!feedbackText.trim()}
                     className="w-full py-2.5 rounded-xl bg-[#997343] text-white text-xs font-semibold hover:bg-[#836237] disabled:opacity-50 transition-all shadow-sm"
                   >
