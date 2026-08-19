@@ -16,7 +16,9 @@ const supabase =
     : null;
 
 const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+type AnalyticsConsent = 'pending' | 'accepted' | 'rejected';
 
+const ANALYTICS_CONSENT_KEY = 'tesoros_analytics_consent';
 
 interface Card {
   '#'?: number | string;
@@ -307,8 +309,8 @@ const getCategoryFromStoredCard = (storedCard: string): string | null => {
 
   return null;
 };
-const GoogleAnalyticsTag = () => {
-  if (!GA_MEASUREMENT_ID) return null;
+const GoogleAnalyticsTag = ({ enabled }: { enabled: boolean }) => {
+  if (!GA_MEASUREMENT_ID || !enabled) return null;
 
   return (
     <>
@@ -316,6 +318,7 @@ const GoogleAnalyticsTag = () => {
         src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
         strategy="afterInteractive"
       />
+
       <Script id="google-analytics" strategy="afterInteractive">
         {`
           window.dataLayer = window.dataLayer || [];
@@ -328,10 +331,66 @@ const GoogleAnalyticsTag = () => {
     </>
   );
 };
+const AnalyticsConsentBanner = ({
+  onConsent,
+}: {
+  onConsent: (choice: 'accepted' | 'rejected') => void;
+}) => {
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-[100] p-3 sm:p-4 animate-fadeIn">
+      <div className="mx-auto w-full max-w-2xl bg-white/95 backdrop-blur-xl border border-[#E3DDD5] rounded-3xl shadow-2xl p-4 sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="text-2xl shrink-0">💎</div>
+
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-serif font-bold text-[#1C1817]">
+              Antes de empezar
+            </h3>
+
+            <p className="text-[11px] sm:text-xs text-[#6F6862] leading-relaxed mt-1.5">
+              Usamos herramientas de análisis para entender, de forma
+              agregada, cómo se utiliza Tesoros y poder mejorar la experiencia.
+              No necesitamos estos datos para que puedas utilizar la app.
+            </p>
+
+            <p className="text-[10px] text-[#8A827A] leading-relaxed mt-2">
+              Puedes aceptar o rechazar este análisis. Tu elección se guardará
+              en este dispositivo y puedes cambiarla más adelante.
+            </p>
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => onConsent('rejected')}
+                className="flex-1 py-2.5 rounded-xl bg-white border border-[#D8D0C8] text-[#332E2B] text-xs font-semibold hover:bg-[#FAF8F5] hover:border-[#997343] transition-all"
+              >
+                Rechazar análisis
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onConsent('accepted')}
+                className="flex-1 py-2.5 rounded-xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all shadow-sm"
+              >
+                Aceptar análisis
+              </button>
+            </div>
+
+            <p className="text-[9px] text-[#B5AEA7] text-center mt-3">
+              Más información sobre privacidad y cookies próximamente.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [analyticsConsent, setAnalyticsConsent] =
+  useState<AnalyticsConsent>('pending');
   const [authActionLoading, setAuthActionLoading] = useState(false);
   const [authError, setAuthError] = useState('');
 
@@ -402,6 +461,22 @@ export default function Home() {
   const [communityVoices, setCommunityVoices] = useState(INITIAL_COMMUNITY_VOICES);
 
   // AUTENTICACIÓN: Google/Supabase. La app no muestra el contenido hasta tener sesión.
+  useEffect(() => {
+    const savedConsent = localStorage.getItem(ANALYTICS_CONSENT_KEY);
+  
+    if (
+      savedConsent === 'accepted' ||
+      savedConsent === 'rejected'
+    ) {
+      setAnalyticsConsent(savedConsent);
+    }
+  }, []);
+
+  const handleAnalyticsConsent = (choice: 'accepted' | 'rejected') => {
+    localStorage.setItem(ANALYTICS_CONSENT_KEY, choice);
+    setAnalyticsConsent(choice);
+  };
+
   useEffect(() => {
     if (!supabase) {
       setAuthError('Falta configurar Supabase en las variables NEXT_PUBLIC_SUPABASE_URL y NEXT_PUBLIC_SUPABASE_ANON_KEY.');
@@ -1230,7 +1305,10 @@ export default function Home() {
   if (authLoading) {
     return (
       <>
-        <GoogleAnalyticsTag />
+        <GoogleAnalyticsTag enabled={analyticsConsent === 'accepted'} />
+        {analyticsConsent === 'pending' && (
+  <AnalyticsConsentBanner onConsent={handleAnalyticsConsent} />
+)}
         <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-center p-6 antialiased">
         <div className="text-6xl animate-pulse mb-4">💎</div>
         <p className="text-xs font-serif italic text-[#997343] font-semibold tracking-wider">
@@ -1244,7 +1322,10 @@ export default function Home() {
   if (!user) {
     return (
       <>
-        <GoogleAnalyticsTag />
+        <GoogleAnalyticsTag enabled={analyticsConsent === 'accepted'} />
+        {analyticsConsent === 'pending' && (
+  <AnalyticsConsentBanner onConsent={handleAnalyticsConsent} />
+)}
         <main className="min-h-screen bg-[#FAF8F5] text-[#332E2B] flex flex-col items-center justify-center p-6 antialiased">
         <div className="w-full max-w-sm bg-white rounded-[32px] border border-[#E3DDD5] shadow-xl p-7 text-center">
           <div className="text-6xl mb-4">💎</div>
@@ -1302,7 +1383,10 @@ export default function Home() {
 
   return (
     <>
-      <GoogleAnalyticsTag />
+      <GoogleAnalyticsTag enabled={analyticsConsent === 'accepted'} />
+      {analyticsConsent === 'pending' && (
+  <AnalyticsConsentBanner onConsent={handleAnalyticsConsent} />
+)}
 
       <style jsx global>{`
         @keyframes pulseGlow {
