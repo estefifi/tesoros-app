@@ -365,6 +365,7 @@ export default function Home() {
   const [showMissionModal, setShowMissionModal] = useState<boolean>(false);
   const [feedbackText, setFeedbackText] = useState<string>('');
   const [feedbackSent, setFeedbackSent] = useState<boolean>(false);
+  const [feedbackSource, setFeedbackSource] = useState<'card' | 'voice'>('voice');
 
   const [showAutoModal, setShowAutoModal] = useState<boolean>(false);
   const [hasShownAutoModal, setHasShownAutoModal] = useState<boolean>(false);
@@ -1825,7 +1826,7 @@ export default function Home() {
                 />
                 <div className="w-full space-y-2">
                   <button
-                 onClick={() => {
+                onClick={() => {
                   if (!feedbackText.trim()) return;
                 
                   const cardId = currentCard ? getAnalyticsCardId(currentCard) : null;
@@ -1833,17 +1834,30 @@ export default function Home() {
                 
                   setFeedbackSent(true);
                 
-                  trackAnalyticsEvent('card_comment_sent', {
-                    card_id: cardId,
-                    category,
-                  });
+                  if (feedbackSource === 'card') {
+                    trackAnalyticsEvent('card_comment_sent', {
+                      card_id: cardId,
+                      category,
+                    });
                 
-                  saveToSupabase('general_user_feedback', {
-                    text: feedbackText.trim(),
-                    card_id: cardId,
-                    category,
-                    created_at: new Date().toISOString(),
-                  });
+                    saveToSupabase('general_user_feedback', {
+                      text: feedbackText.trim(),
+                      source: 'card_comment',
+                      card_id: cardId,
+                      category,
+                      created_at: new Date().toISOString(),
+                    });
+                  } else {
+                    trackAnalyticsEvent('general_feedback_sent', {
+                      source: 'voice_button',
+                    });
+                
+                    saveToSupabase('general_user_feedback', {
+                      text: feedbackText.trim(),
+                      source: 'voice_button',
+                      created_at: new Date().toISOString(),
+                    });
+                  }
                 }}
                     disabled={!feedbackText.trim()}
                     className="w-full py-2.5 rounded-xl bg-[#997343] text-white text-xs font-semibold hover:bg-[#836237] disabled:opacity-50 transition-all shadow-sm"
@@ -2595,7 +2609,10 @@ export default function Home() {
                       </button>
 
                       <button
-                        onClick={() => setShowFeedbackModal(true)}
+                        onClick={() => {
+                          setFeedbackSource('card');
+                          setShowFeedbackModal(true);
+                        }}
                         className="py-2.5 rounded-xl bg-white border border-[#E3DDD5] text-[#332E2B] text-[10px] font-medium flex items-center justify-center gap-1 hover:bg-[#FAF8F5] transition-all"
                       >
                         <span>💬</span>
@@ -3165,7 +3182,10 @@ export default function Home() {
               {/* BOTONERA DE ACCIÓN SOCIAL — SE MANTIENE EL FLUJO EXISTENTE */}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
-                  onClick={() => setShowFeedbackModal(true)}
+                  onClick={() => {
+                    setFeedbackSource('voice');
+                    setShowFeedbackModal(true);
+                  }}
                   className="py-2.5 px-3 rounded-2xl bg-[#1C1817] text-white text-xs font-semibold hover:bg-[#332E2B] transition-all flex items-center justify-center gap-1.5 shadow-xs"
                 >
                   <span>💬</span>
